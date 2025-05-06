@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../utils/app_constants.dart';
+import '../widgets/custom_bottom_navigation.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class DietaryHabitsScreen extends StatefulWidget {
   const DietaryHabitsScreen({Key? key}) : super(key: key);
@@ -236,6 +238,7 @@ class _DietaryHabitsScreenState extends State<DietaryHabitsScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            const SizedBox(height: 10),
             Container(
               width: double.infinity,
               padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
@@ -244,6 +247,7 @@ class _DietaryHabitsScreenState extends State<DietaryHabitsScreen> {
               ),
               child: const Text(
                 'Dietary Habits',
+                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontFamily: 'Poppins',
                   fontSize: 20,
@@ -304,32 +308,74 @@ class _DietaryHabitsScreenState extends State<DietaryHabitsScreen> {
             ),
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.all(24),
+              padding: const EdgeInsets.only(top: 16, left: 24, right: 24),
               child: ElevatedButton(
                 onPressed: () {
                   Navigator.pushNamed(context, AppConstants.environmentalFactorsRoute);
                 },
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF5C5470),
+                  backgroundColor: const Color(0xFF65558F),
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(4),
+                    borderRadius: BorderRadius.circular(25),
                   ),
                   elevation: 0,
                 ),
-                child: const Text(
+                child: Text(
                   'Next',
-                  style: TextStyle(
-                    fontFamily: 'Poppins',
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
+                  style: GoogleFonts.montaga(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w900,
                     color: Colors.white,
                   ),
                 ),
               ),
             ),
+            Container(
+              margin: const EdgeInsets.only(top: 18, bottom: 0),
+              width: double.infinity,
+              height: 10,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Container(
+                    width: 65,
+                    height: 6,
+                    decoration: BoxDecoration(
+                      color: Colors.grey[350],
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Container(
+                    width: 65,
+                    height: 6,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF5C5470),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Container(
+                    width: 65,
+                    height: 6,
+                    decoration: BoxDecoration(
+                      color: Colors.grey[350],
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ],
         ),
+      ),
+      bottomNavigationBar: CustomBottomNavigation(
+        screenColor: Colors.white,
+        currentIndex: 0,
+        onTap: (index) {
+          // Handle tab changes if needed
+        },
       ),
     );
   }

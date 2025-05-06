@@ -5,6 +5,7 @@ import 'dart:math';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../widgets/custom_bottom_navigation.dart';
 
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({Key? key}) : super(key: key);
@@ -26,6 +27,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      resizeToAvoidBottomInset: false,
+      extendBody: true,
+      extendBodyBehindAppBar: true,
       body: Container(
         width: double.infinity,
         decoration: const BoxDecoration(
@@ -46,7 +50,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const SizedBox(height: 120),
+                    const SizedBox(height: 100),
                     // Title
                     Text(
                       'Start to improve\nyour sleep\nquality',
@@ -67,43 +71,50 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                         color: Colors.white.withOpacity(0.7),
                       ),
                     ),
-                    const SizedBox(height: 32),
                     // Sleep Icon Pattern (moved here)
-                    Center(
-                      child: Image.asset(
-                        'assets/icons/icon_large.png',
-                        width: 120,
-                        height: 120,
-                      ),
-                    ),
-                    const SizedBox(height: 32),
-                    // Age TextField
-                    Center(
-                      child: Container(
-                        height: 55,
-                        width: 170,
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(25),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        Transform.translate(
+                          offset: const Offset(140, 0), // Move half the width right
+                          child: Image.asset(
+                            'assets/icons/icon_large.png',
+                            width: 290,
+                            height: 290,
+                          ),
                         ),
-                        child: TextField(
-                          controller: _ageController,
-                          style: AppTheme.bodyLarge,
-                          textAlign: TextAlign.center,
-                          keyboardType: TextInputType.number,
-                          decoration: InputDecoration(
-                            hintText: 'Age',
-                            hintStyle: AppTheme.modifyStyle(
-                              AppTheme.bodyLarge,
-                              color: Colors.white.withOpacity(0.5),
-                            ),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(25),
-                              borderSide: BorderSide.none,
-                            ),
-                            contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 20,
-                              vertical: 16,
+                      ],
+                    ),
+                    // Age TextField
+                    Transform.translate(
+                      offset: const Offset(0, -80), // Move up by 20 pixels
+                      child: Center(
+                        child: Container(
+                          height: 55,
+                          width: 170,
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(25),
+                          ),
+                          child: TextField(
+                            controller: _ageController,
+                            style: AppTheme.bodyLarge,
+                            textAlign: TextAlign.center,
+                            keyboardType: TextInputType.number,
+                            decoration: InputDecoration(
+                              hintText: 'Age',
+                              hintStyle: AppTheme.modifyStyle(
+                                AppTheme.bodyLarge,
+                                color: Colors.white.withOpacity(0.5),
+                              ),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(25),
+                                borderSide: BorderSide.none,
+                              ),
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 20,
+                                vertical: 16,
+                              ),
                             ),
                           ),
                         ),
@@ -112,57 +123,89 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                     const SizedBox(height: 16),
                     
                     // Gender Dropdown
-                    Center(
-                      child: Container(
-                        height: 55,
-                        width: 170,
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(25),
-                        ),
-                        alignment: Alignment.center,
-                        child: Text(
-                          'Gender',
-                          style: AppTheme.modifyStyle(
-                            AppTheme.bodyLarge,
-                            color: Colors.white.withOpacity(0.5),
+                    Transform.translate(
+                      offset: const Offset(0, -80), // Move up by 20 pixels
+                      child: Center(
+                        child: Container(
+                          height: 55,
+                          width: 170,
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(25),
                           ),
-                          textAlign: TextAlign.center,
+                          child: DropdownButtonHideUnderline(
+                            child: DropdownButton<String>(
+                              value: _selectedGender,
+                              isExpanded: true,
+                              dropdownColor: const Color(0xFF352F44),
+                              icon: const SizedBox.shrink(), // Hide the dropdown icon
+                              hint: Center(
+                                child: Text(
+                                  'Gender',
+                                  style: AppTheme.modifyStyle(
+                                    AppTheme.bodyLarge,
+                                    color: Colors.white.withOpacity(0.5),
+                                  ),
+                                ),
+                              ),
+                              items: ['Male', 'Female', 'Other']
+                                  .map((String value) {
+                                return DropdownMenuItem<String>(
+                                  value: value,
+                                  child: Center(
+                                    child: Text(
+                                      value,
+                                      style: AppTheme.modifyStyle(
+                                        AppTheme.bodyLarge,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                  ),
+                                );
+                              }).toList(),
+                              onChanged: (String? newValue) {
+                                setState(() {
+                                  _selectedGender = newValue;
+                                });
+                              },
+                            ),
+                          ),
                         ),
                       ),
                     ),
-                    
-                    const Spacer(),
-                    
+                                        
                     // Next Button
-                    Center(
-                      child: Padding(
-                        padding: const EdgeInsets.only(bottom: 40),
-                        child: SizedBox(
-                          width: 200,
-                          height: 60,
-                          child: ElevatedButton(
-                            onPressed: () {
-                              if (_ageController.text.isNotEmpty && _selectedGender != null) {
-                                // Save age and gender data
-                                final authProvider = Provider.of<AuthProvider>(context, listen: false);
-                                // Navigate to sleep patterns screen
-                                Navigator.pushNamed(context, AppConstants.sleepPatternsRoute);
-                              }
-                            },
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF1E1B2C),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
+                    Transform.translate(
+                      offset: const Offset(0, -30),
+                      child: Center(
+                        child: Padding(
+                          padding: const EdgeInsets.only(bottom: 0),
+                          child: SizedBox(
+                            width: 200,
+                            height: 60,
+                            child: ElevatedButton(
+                              onPressed: () {
+                                if (_ageController.text.isNotEmpty && _selectedGender != null) {
+                                  // Save age and gender data
+                                  final authProvider = Provider.of<AuthProvider>(context, listen: false);
+                                  // Navigate to sleep patterns screen
+                                  Navigator.pushNamed(context, AppConstants.sleepPatternsRoute);
+                                }
+                              },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF1E1B2C),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                elevation: 0,
                               ),
-                              elevation: 0,
-                            ),
-                            child: Text(
-                              'Next',
-                              style: GoogleFonts.montaga(
-                                fontSize: 24,
-                                fontWeight: FontWeight.w600,
-                                color: Colors.white,
+                              child: Text(
+                                'Next',
+                                style: GoogleFonts.montaga(
+                                  fontSize: 24,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.white,
+                                ),
                               ),
                             ),
                           ),
@@ -176,48 +219,12 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           ),
         ),
       ),
+      bottomNavigationBar: CustomBottomNavigation(
+        currentIndex: 0,
+        onTap: (index) {
+          // Handle tab changes if needed
+        },
+      ),
     );
   }
 }
-
-class SleepPatternPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final Paint paint = Paint()
-      ..color = Colors.white.withOpacity(0.1)
-      ..strokeWidth = 1.5
-      ..style = PaintingStyle.stroke;
-
-    final double centerX = size.width / 2;
-    final double centerY = size.height / 2;
-    final double radius = size.width / 3;
-
-    // Draw main circle
-    canvas.drawCircle(Offset(centerX, centerY), radius, paint);
-
-    // Draw spikes
-    for (int i = 0; i < 12; i++) {
-      final double angle = (i * 30) * (3.14159 / 180);
-      final double startX = centerX + radius * cos(angle);
-      final double startY = centerY + radius * sin(angle);
-      final double endX = centerX + (radius * 1.5) * cos(angle);
-      final double endY = centerY + (radius * 1.5) * sin(angle);
-
-      canvas.drawLine(
-        Offset(startX, startY),
-        Offset(endX, endY),
-        paint,
-      );
-
-      // Draw small circles at the end of spikes
-      canvas.drawCircle(
-        Offset(endX, endY),
-        3,
-        paint,
-      );
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-} 

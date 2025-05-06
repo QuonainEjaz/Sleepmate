@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import '../utils/app_constants.dart';
 import '../utils/app_theme.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:flutter/services.dart';
+import '../widgets/custom_bottom_navigation.dart';
 
 class SleepPatternsScreen extends StatefulWidget {
   const SleepPatternsScreen({Key? key}) : super(key: key);
@@ -10,13 +13,29 @@ class SleepPatternsScreen extends StatefulWidget {
 }
 
 class _SleepPatternsScreenState extends State<SleepPatternsScreen> {
+  @override
+  void initState() {
+    super.initState();
+    SystemChrome.setSystemUIOverlayStyle(
+      const SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: Brightness.dark,
+        statusBarBrightness: Brightness.light,
+        systemNavigationBarColor: Colors.transparent,
+        systemNavigationBarDividerColor: Colors.transparent,
+        systemNavigationBarIconBrightness: Brightness.dark,
+      ),
+    );
+  }
+
   TimeOfDay _weekdayBedtime = const TimeOfDay(hour: 23, minute: 0);
   TimeOfDay _weekdayWakeup = const TimeOfDay(hour: 9, minute: 0);
   TimeOfDay _weekendBedtime = const TimeOfDay(hour: 0, minute: 0);
   TimeOfDay _weekendWakeup = const TimeOfDay(hour: 10, minute: 0);
   int _sleepDuration = 6;
   int _awakenings = 3;
-  double _sleepQuality = 1.0;
+  int _rateSleepQuality = 1;
+  int _relaxedBeforeSleep = 1;
   bool _useElectronics = true;
   double _stressLevel = 1.0;
 
@@ -94,33 +113,36 @@ class _SleepPatternsScreenState extends State<SleepPatternsScreen> {
       children: [
         Text(
           label,
-          style: AppTheme.modifyStyle(
-            AppTheme.bodyMedium,
+          style: GoogleFonts.montaga(
+            fontSize: 16,
             color: Colors.black87,
           ),
         ),
         InkWell(
           onTap: () => _selectTime(context, type),
           child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            width: 135,
+            height: 35,
+            padding: const EdgeInsets.symmetric(horizontal: 12),
             decoration: BoxDecoration(
-              border: Border.all(color: Colors.grey.shade300),
-              borderRadius: BorderRadius.circular(4),
+              border: Border.all(color: const Color(0xFF31244C), width: 1),
+              borderRadius: BorderRadius.circular(10),
               color: Colors.white,
             ),
             child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  _formatTime(time),
-                  style: AppTheme.modifyStyle(
-                    AppTheme.bodyMedium,
+                  _formatTime(time) + (time.period == DayPeriod.am ? ' am' : ' pm'),
+                  style: GoogleFonts.montaga(
+                    fontSize: 16,
                     color: Colors.black87,
                   ),
                 ),
-                const SizedBox(width: 8),
-                Icon(
-                  Icons.access_time,
-                  size: 16,
+                Image.asset(
+                  'assets/icons/timer.png',
+                  width: 22,
+                  height: 22,
                   color: Colors.grey.shade600,
                 ),
               ],
@@ -131,60 +153,133 @@ class _SleepPatternsScreenState extends State<SleepPatternsScreen> {
     );
   }
 
-  Widget _buildDropdown(String label, String value, {String? subtitle}) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: AppTheme.modifyStyle(
-            AppTheme.bodyMedium,
-            color: Colors.black87,
-          ),
-        ),
-        if (subtitle != null)
-          Padding(
-            padding: const EdgeInsets.only(top: 2),
-            child: Text(
-              subtitle,
-              style: AppTheme.modifyStyle(
-                AppTheme.bodySmall,
-                color: Colors.grey.shade600,
-              ),
+  Widget _buildStepper(String label, int value, void Function(int) onChanged, {String? subtitle, int min = 0, int max = 100, bool showIcons = true, String? hintText}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 1),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Flexible(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: GoogleFonts.montaga(
+                    fontSize: 16,
+                    color: const Color(0xFF31244C),
+                  ),
+                ),
+                if (subtitle != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 2),
+                    child: Text(
+                      subtitle,
+                      style: GoogleFonts.montaga(
+                        fontSize: 13,
+                        color: const Color(0xFF31244C),
+                      ),
+                    ),
+                  ),
+              ],
             ),
           ),
-        const SizedBox(height: 4),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          decoration: BoxDecoration(
-            border: Border.all(color: Colors.grey.shade300),
-            borderRadius: BorderRadius.circular(4),
-            color: Colors.white,
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
+          Row(
             children: [
-              Text(
-                value,
-                style: AppTheme.modifyStyle(
-                  AppTheme.bodyMedium,
-                  color: Colors.black87,
+              Container(
+                width: 100,
+                height: 46,
+                decoration: BoxDecoration(
+                  border: Border.all(color: const Color(0xFF31244C), width: 1),
+                  borderRadius: BorderRadius.circular(12),
+                  color: Colors.white,
+                ),
+                padding: const EdgeInsets.only(left: 15, right: 10),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: TextField(
+                          controller: TextEditingController(text: value.toString()),
+                        keyboardType: TextInputType.number,
+                        textAlign: TextAlign.center,
+                        style: GoogleFonts.montaga(
+                          fontSize: 22,
+                          color: const Color(0xFF31244C),
+                        ),
+                        decoration: InputDecoration(
+                          border: InputBorder.none,
+                          isDense: true,
+                          contentPadding: EdgeInsets.zero,
+                          hintText: hintText,
+                          hintStyle: GoogleFonts.montaga(
+                            fontSize: 18,
+                            color: const Color(0xFF31244C).withOpacity(0.5),
+                          ),
+                        ),
+                        inputFormatters: showIcons ? null : [
+                          FilteringTextInputFormatter.digitsOnly,
+                          FilteringTextInputFormatter.allow(RegExp(r'^[1-5]?')),
+                        ],
+                        onSubmitted: (val) {
+                          final int? newValue = int.tryParse(val);
+                          if (newValue != null && newValue >= min && newValue <= max) {
+                            onChanged(newValue);
+                          }
+                        },
+                      ),
+                    ),
+                    if (showIcons) ...[
+                      Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          Transform.translate(
+                            offset: const Offset(0, 6),
+                            child: GestureDetector(
+                              onTap: () {
+                                if (value < max) onChanged(value + 1);
+                              },
+                              child: Icon(
+                                Icons.expand_less,
+                                size: 22,
+                                color: const Color(0xFF31244C),
+                              ),
+                            ),
+                          ),
+                          Transform.translate(
+                            offset: const Offset(0, -6),
+                            child: GestureDetector(
+                              onTap: () {
+                                if (value > min) onChanged(value - 1);
+                              },
+                              child: Icon(
+                                Icons.expand_more,
+                                size: 22,
+                                color: const Color(0xFF31244C),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ]  
+                  ],
                 ),
               ),
-              Icon(
-                Icons.arrow_drop_down,
-                color: Colors.grey.shade600,
-              ),
+              const SizedBox(width: 30),
             ],
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      extendBodyBehindAppBar: true,
       backgroundColor: Colors.white,
       body: SafeArea(
         child: Column(
@@ -192,21 +287,20 @@ class _SleepPatternsScreenState extends State<SleepPatternsScreen> {
           children: [
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
-              decoration: const BoxDecoration(
-                color: Color(0xFF2D2041),
-              ),
+              padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 24),
               child: Text(
                 'Sleep Patterns',
-                style: AppTheme.modifyStyle(
-                  AppTheme.titleMedium,
-                  color: Colors.white,
+                textAlign: TextAlign.center,
+                style: GoogleFonts.montaga(
+                  fontSize: 25,
+                  fontWeight: FontWeight.w700,
+                  color: const Color(0xFF3B1F52),
                 ),
               ),
             ),
             Expanded(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.all(24),
+                padding: const EdgeInsets.only( left: 24, right: 24),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -218,22 +312,27 @@ class _SleepPatternsScreenState extends State<SleepPatternsScreen> {
                     const SizedBox(height: 16),
                     _buildTimeSelector('Weekend wake-up', 'weekendWakeup'),
                     const SizedBox(height: 16),
-                    _buildDropdown('Average Sleep Duration', '$_sleepDuration'),
+                    _buildStepper('Average Sleep Duration', _sleepDuration, (val) => setState(() => _sleepDuration = val)),
                     const SizedBox(height: 16),
-                    _buildDropdown('Awakenings during night', '$_awakenings'),
+                    _buildStepper('Awakenings during night', _awakenings, (val) => setState(() => _awakenings = val)),
                     const SizedBox(height: 16),
-                    _buildDropdown('Rate sleep quality', '1-5',
-                        subtitle: '(1 for worst and 5 for best)'),
+                    _buildStepper('Rate sleep quality', _rateSleepQuality, (val) => setState(() => _rateSleepQuality = val),
+                      subtitle: '(1 for worst and 5 for best)',
+                      min: 1,
+                      max: 5,
+                      showIcons: false,
+                      hintText: '1 - 5'),
                     const SizedBox(height: 16),
                     Text(
                       'Use electronic devices before bed?',
-                      style: AppTheme.modifyStyle(
-                        AppTheme.bodyMedium,
+                      style: GoogleFonts.montaga(
+                        fontSize: 16,
                         color: Colors.black87,
                       ),
                     ),
                     const SizedBox(height: 8),
                     Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Row(
                           children: [
@@ -254,17 +353,16 @@ class _SleepPatternsScreenState extends State<SleepPatternsScreen> {
                               ),
                             ),
                             const SizedBox(width: 8),
-                            const Text(
+                            Text(
                               'Yes',
-                              style: TextStyle(
-                                fontFamily: 'Poppins',
+                              style: GoogleFonts.montaga(
                                 fontSize: 14,
                                 color: Colors.black87,
                               ),
                             ),
                           ],
                         ),
-                        const SizedBox(width: 24),
+                        const SizedBox(width: 64),
                         Row(
                           children: [
                             SizedBox(
@@ -284,23 +382,29 @@ class _SleepPatternsScreenState extends State<SleepPatternsScreen> {
                               ),
                             ),
                             const SizedBox(width: 8),
-                            const Text(
+                            Text(
                               'No',
-                              style: TextStyle(
-                                fontFamily: 'Poppins',
+                              style: GoogleFonts.montaga(
                                 fontSize: 14,
                                 color: Colors.black87,
                               ),
                             ),
+                            const SizedBox(width: 90),
+
                           ],
                         ),
                       ],
                     ),
                     const SizedBox(height: 16),
-                    _buildDropdown(
+                    _buildStepper(
                       'How relaxed do you feel before sleep?',
-                      '1-5',
+                      _relaxedBeforeSleep,
+                      (val) => setState(() => _relaxedBeforeSleep = val),
                       subtitle: '(1 for worst and 5 for best)',
+                      min: 1,
+                      max: 5,
+                      showIcons: false,
+                      hintText: '1 - 5',
                     ),
                   ],
                 ),
@@ -308,32 +412,74 @@ class _SleepPatternsScreenState extends State<SleepPatternsScreen> {
             ),
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.all(24),
+              padding: const EdgeInsets.only(left: 24, right: 24),
               child: ElevatedButton(
                 onPressed: () {
                   Navigator.pushNamed(context, AppConstants.dietaryHabitsRoute);
                 },
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF5C5470),
+                  backgroundColor: const Color(0xFF65558F),
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(4),
+                    borderRadius: BorderRadius.circular(25),
                   ),
                   elevation: 0,
                 ),
-                child: const Text(
+                child: Text(
                   'Next',
-                  style: TextStyle(
-                    fontFamily: 'Poppins',
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
+                  style: GoogleFonts.montaga(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w900,
                     color: Colors.white,
                   ),
                 ),
               ),
             ),
+            Container(
+              margin: const EdgeInsets.only(top: 18, bottom: 0),
+              width: double.infinity,
+              height: 10,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Container(
+                    width: 65,
+                    height: 6,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF5C5470),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Container(
+                    width: 65,
+                    height: 6,
+                    decoration: BoxDecoration(
+                      color: Colors.grey[350],
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Container(
+                    width: 65,
+                    height: 6,
+                    decoration: BoxDecoration(
+                      color: Colors.grey[350],
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ],
         ),
+      ),
+      bottomNavigationBar: CustomBottomNavigation(
+        screenColor: Colors.white,
+        currentIndex: 0,
+        onTap: (index) {
+          // Handle tab changes if needed
+        },
       ),
     );
   }
