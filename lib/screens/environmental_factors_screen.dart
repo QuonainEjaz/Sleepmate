@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../utils/app_constants.dart';
 import '../widgets/custom_bottom_navigation.dart';
+import '../widgets/custom_profile_drawer.dart';
 
 
 class EnvironmentalFactorsScreen extends StatefulWidget {
@@ -14,7 +15,7 @@ class EnvironmentalFactorsScreen extends StatefulWidget {
 
 class _EnvironmentalFactorsScreenState extends State<EnvironmentalFactorsScreen> {
   String _lightIntensity = '450 lux';
-  String _temperature = '22°C';
+  String _temperature = '22 °C';
   String _soundExposure = 'Quiet (< 30 dB)';
 
   Widget _buildInputField(String label, String value, {IconData? icon}) {
@@ -24,16 +25,18 @@ class _EnvironmentalFactorsScreenState extends State<EnvironmentalFactorsScreen>
         Text(
           label,
           style: const TextStyle(
-            fontFamily: 'Poppins',
-            fontSize: 14,
+            fontFamily: 'Montaga',
+            fontSize: 18,
             color: Colors.black87,
           ),
         ),
         Container(
+          width: 170,
+          height: 48,
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           decoration: BoxDecoration(
-            border: Border.all(color: Colors.grey.shade300),
-            borderRadius: BorderRadius.circular(4),
+            border: Border.all(color: const Color(0xFF31244C), width: 2),
+            borderRadius: BorderRadius.circular(10),
             color: Colors.white,
           ),
           child: Row(
@@ -41,16 +44,16 @@ class _EnvironmentalFactorsScreenState extends State<EnvironmentalFactorsScreen>
               Text(
                 value,
                 style: const TextStyle(
-                  fontFamily: 'Poppins',
-                  fontSize: 14,
+                  fontFamily: 'Montaga',
+                  fontSize: 16,
                   color: Colors.black87,
                 ),
               ),
               if (icon != null) ...[
-                const SizedBox(width: 8),
+                const SizedBox(width: 70),
                 Icon(
                   icon,
-                  size: 16,
+                  size: 22,
                   color: Colors.grey.shade600,
                 ),
               ],
@@ -64,6 +67,7 @@ class _EnvironmentalFactorsScreenState extends State<EnvironmentalFactorsScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      endDrawer: const CustomProfileDrawer(),
       backgroundColor: Colors.white,
       body: SafeArea(
         child: Column(
@@ -89,7 +93,7 @@ class _EnvironmentalFactorsScreenState extends State<EnvironmentalFactorsScreen>
             ),
             Expanded(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.all(24),
+                padding: const EdgeInsets.only(left: 30, right: 30, top: 100, bottom: 20),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -100,70 +104,79 @@ class _EnvironmentalFactorsScreenState extends State<EnvironmentalFactorsScreen>
                     const Text(
                       'Sound Exposure',
                       style: TextStyle(
-                        fontFamily: 'Poppins',
-                        fontSize: 14,
+                        fontFamily: 'Montaga',
+                        fontSize: 18,
                         color: Colors.black87,
                       ),
                     ),
                     const SizedBox(height: 8),
                     Column(
                       children: [
-                        RadioListTile<String>(
-                          title: const Text(
-                            'Quiet (< 30 dB)',
-                            style: TextStyle(
-                              fontFamily: 'Poppins',
-                              fontSize: 14,
-                              color: Colors.black87,
+                        Padding(
+                          padding: const EdgeInsets.only(left: 100.0),
+                          child: RadioListTile<String>(
+                            title: const Text(
+                              'Quiet (< 30 dB)',
+                              style: TextStyle(
+                                fontFamily: 'Montaga',
+                                fontSize: 16,
+                                color: Colors.black87,
+                              ),
                             ),
+                            value: 'Quiet (< 30 dB)',
+                            groupValue: _soundExposure,
+                            onChanged: (value) {
+                              setState(() {
+                                _soundExposure = value!;
+                              });
+                            },
+                            activeColor: const Color(0xFF2D2041),
+                            contentPadding: EdgeInsets.zero,
                           ),
-                          value: 'Quiet (< 30 dB)',
-                          groupValue: _soundExposure,
-                          onChanged: (value) {
-                            setState(() {
-                              _soundExposure = value!;
-                            });
-                          },
-                          activeColor: const Color(0xFF2D2041),
-                          contentPadding: EdgeInsets.zero,
                         ),
-                        RadioListTile<String>(
-                          title: const Text(
-                            'Moderate (30-60 dB)',
-                            style: TextStyle(
-                              fontFamily: 'Poppins',
-                              fontSize: 14,
-                              color: Colors.black87,
+                        Padding(
+                          padding: const EdgeInsets.only(left: 100.0),
+                          child: RadioListTile<String>(
+                            title: const Text(
+                              'Moderate (30-60 dB)',
+                              style: TextStyle(
+                                fontFamily: 'Montaga',
+                                fontSize: 16,
+                                color: Colors.black87,
+                              ),
                             ),
+                            value: 'Moderate (30-60 dB)',
+                            groupValue: _soundExposure,
+                            onChanged: (value) {
+                              setState(() {
+                                _soundExposure = value!;
+                              });
+                            },
+                            activeColor: const Color(0xFF2D2041),
+                            contentPadding: EdgeInsets.zero,
                           ),
-                          value: 'Moderate (30-60 dB)',
-                          groupValue: _soundExposure,
-                          onChanged: (value) {
-                            setState(() {
-                              _soundExposure = value!;
-                            });
-                          },
-                          activeColor: const Color(0xFF2D2041),
-                          contentPadding: EdgeInsets.zero,
                         ),
-                        RadioListTile<String>(
-                          title: const Text(
-                            'Loud (> 60 dB)',
-                            style: TextStyle(
-                              fontFamily: 'Poppins',
-                              fontSize: 14,
-                              color: Colors.black87,
+                        Padding(
+                          padding: const EdgeInsets.only(left: 100.0),
+                          child: RadioListTile<String>(
+                            title: const Text(
+                              'Loud (> 60 dB)',
+                              style: TextStyle(
+                                fontFamily: 'Montaga',
+                                fontSize: 16,
+                                color: Colors.black87,
+                              ),
                             ),
+                            value: 'Loud (> 60 dB)',
+                            groupValue: _soundExposure,
+                            onChanged: (value) {
+                              setState(() {
+                                _soundExposure = value!;
+                              });
+                            },
+                            activeColor: const Color(0xFF2D2041),
+                            contentPadding: EdgeInsets.zero,
                           ),
-                          value: 'Loud (> 60 dB)',
-                          groupValue: _soundExposure,
-                          onChanged: (value) {
-                            setState(() {
-                              _soundExposure = value!;
-                            });
-                          },
-                          activeColor: const Color(0xFF2D2041),
-                          contentPadding: EdgeInsets.zero,
                         ),
                       ],
                     ),
@@ -192,8 +205,8 @@ class _EnvironmentalFactorsScreenState extends State<EnvironmentalFactorsScreen>
                 child: const Text(
                   'View Prediction',
                   style: TextStyle(
-                    fontFamily: 'Poppins',
-                    fontSize: 16,
+                    fontFamily: 'Montaga',
+                    fontSize: 18,
                     fontWeight: FontWeight.w600,
                     color: Colors.white,
                   ),

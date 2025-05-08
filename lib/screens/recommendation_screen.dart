@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../utils/app_constants.dart';
 import '../widgets/custom_bottom_navigation.dart';
+import '../widgets/custom_profile_drawer.dart';
 
 class RecommendationScreen extends StatelessWidget {
   const RecommendationScreen({super.key});
@@ -13,6 +14,7 @@ class RecommendationScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            const SizedBox(height: 20),
             Container(
               width: double.infinity,
               padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
@@ -21,8 +23,9 @@ class RecommendationScreen extends StatelessWidget {
               ),
               child: const Text(
                 'Recommendation',
+                textAlign: TextAlign.center,
                 style: TextStyle(
-                  fontFamily: 'Poppins',
+                  fontFamily: 'Montaga',
                   fontSize: 20,
                   fontWeight: FontWeight.w600,
                   color: Colors.white,
@@ -30,7 +33,7 @@ class RecommendationScreen extends StatelessWidget {
               ),
             ),
             Padding(
-              padding: const EdgeInsets.all(24),
+              padding: const EdgeInsets.symmetric(horizontal: 35, vertical: 30),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -42,27 +45,27 @@ class RecommendationScreen extends StatelessWidget {
                           Text(
                             'Hi!,',
                             style: TextStyle(
-                              fontFamily: 'Poppins',
-                              fontSize: 24,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.black87,
+                              fontFamily: 'Montaga',
+                              fontSize: 36,
+                              fontWeight: FontWeight.w500,
+                              color: const Color(0xFF2D2041),
                             ),
                           ),
                           Text(
                             'Youssef',
                             style: TextStyle(
-                              fontFamily: 'Poppins',
-                              fontSize: 24,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.black87,
+                              fontFamily: 'Montaga',
+                              fontSize: 36,
+                              fontWeight: FontWeight.w500,
+                              color: const Color(0xFF2D2041),
                             ),
                           ),
                         ],
                       ),
                       const Spacer(),
                       Container(
-                        width: 48,
-                        height: 48,
+                        width: 66,
+                        height: 68,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
                           border: Border.all(
@@ -74,9 +77,10 @@ class RecommendationScreen extends StatelessWidget {
                         child: const Icon(
                           Icons.person,
                           color: Color(0xFF2D2041),
-                          size: 32,
+                          size: 40,
                         ),
                       ),
+                      const SizedBox(width: 10),
                     ],
                   ),
                   const SizedBox(height: 24),
@@ -118,30 +122,32 @@ class RecommendationScreen extends StatelessWidget {
                       ],
                     ),
                   ),
-                  const SizedBox(height: 24),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: () {
+                  const SizedBox(height: 54),
+                  Center(
+                    child: SizedBox(
+                      width: 250,
+                      child: ElevatedButton(
+                        onPressed: () {
                         Navigator.pushNamed(context, AppConstants.sleepQualityFeedbackRoute);
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFF5C5470),
                         padding: const EdgeInsets.symmetric(vertical: 16),
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(4),
+                          borderRadius: BorderRadius.circular(25),
                         ),
                         elevation: 0,
                       ),
                       child: const Text(
                         'Feedback',
                         style: TextStyle(
-                          fontFamily: 'Poppins',
+                          fontFamily: 'Montaga',
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
                           color: Colors.white,
                         ),
                       ),
+                    ),
                     ),
                   ),
                 ],
@@ -156,6 +162,7 @@ class RecommendationScreen extends StatelessWidget {
           // Handle tab changes if needed
         },
       ),
+      endDrawer: const CustomProfileDrawer(),
     );
   }
 

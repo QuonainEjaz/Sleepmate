@@ -24,6 +24,11 @@ import 'screens/sleep_quality_feedback_screen.dart';
 import 'providers/auth_provider.dart';
 import 'screens/splash_screen1.dart';
 import 'screens/forgot_password_screen.dart';
+import 'screens/settings_screen.dart';
+import 'screens/account_information_screen.dart';
+import 'screens/notification_screen.dart';
+import 'screens/progress_report_screen.dart';
+import 'screens/schedule_screen.dart';
 
 // Error widget for Firebase initialization failure
 class ErrorScreen extends StatelessWidget {
@@ -150,6 +155,11 @@ class MyApp extends StatelessWidget {
           AppConstants.recommendationRoute: (context) => const RecommendationScreen(),
           AppConstants.sleepQualityFeedbackRoute: (context) => const SleepQualityFeedbackScreen(),
           testFirebaseRoute: (context) => const TestFirebaseScreen(),
+          '/settings': (context) => const SettingsScreen(),
+          '/account-info': (context) => const AccountInformationScreen(),
+          '/notifications': (context) => const NotificationScreen(),
+          '/progress-report': (context) => const ProgressReportScreen(),
+          AppConstants.scheduleRoute: (context) => const ScheduleScreen(),
           // Add more routes as they are implemented
         },
         debugShowCheckedModeBanner: false,

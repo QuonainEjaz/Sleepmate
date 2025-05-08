@@ -4,6 +4,7 @@ import '../utils/app_theme.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter/services.dart';
 import '../widgets/custom_bottom_navigation.dart';
+import '../widgets/custom_profile_drawer.dart';
 
 class SleepPatternsScreen extends StatefulWidget {
   const SleepPatternsScreen({Key? key}) : super(key: key);
@@ -481,6 +482,7 @@ class _SleepPatternsScreenState extends State<SleepPatternsScreen> {
           // Handle tab changes if needed
         },
       ),
+      endDrawer: const CustomProfileDrawer(),
     );
   }
 } 

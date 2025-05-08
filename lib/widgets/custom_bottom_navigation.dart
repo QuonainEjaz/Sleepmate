@@ -16,8 +16,7 @@ class CustomBottomNavigation extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      type: MaterialType.transparency,
-      color: screenColor,
+      color: screenColor == Colors.white ? Colors.white : Colors.transparent,
       child: SafeArea(
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -28,7 +27,9 @@ class CustomBottomNavigation extends StatelessWidget {
               isSelected: currentIndex == 0,
               onTap: () {
                 onTap(0);
-                Navigator.pop(context);
+                if (Navigator.canPop(context)) {
+                  Navigator.pop(context);
+                }
               },
               imagePath: screenColor == Colors.white ? 'assets/icons/arrow_back_double_purple.png' : 'assets/icons/arrow_back_double.png',
             ),
@@ -38,11 +39,14 @@ class CustomBottomNavigation extends StatelessWidget {
               isSelected: currentIndex == 1,
               onTap: () {
                 onTap(1);
-                Navigator.pushNamedAndRemoveUntil(
-                  context,
-                  AppConstants.homeRoute,
-                  (route) => false,
-                );
+                final currentRoute = ModalRoute.of(context)?.settings.name;
+                if (currentRoute != AppConstants.predictionRoute) {
+                  Navigator.pushNamedAndRemoveUntil(
+                    context,
+                    AppConstants.predictionRoute,
+                    (route) => false,
+                  );
+                }
               },
               imagePath: screenColor == Colors.white ? 'assets/icons/home_icon_purple.png' : 'assets/icons/home_icon.png',
             ),
@@ -52,7 +56,7 @@ class CustomBottomNavigation extends StatelessWidget {
               isSelected: currentIndex == 2,
               onTap: () {
                 onTap(2);
-                Navigator.pushNamed(context, AppConstants.profileRoute);
+                Scaffold.of(context).openEndDrawer();
               },
               imagePath: screenColor == Colors.white ? 'assets/icons/user_circle_purple.png' :  'assets/icons/user_circle.png',
             ),
@@ -69,6 +73,8 @@ class CustomBottomNavigation extends StatelessWidget {
     required VoidCallback onTap,
     String? imagePath,
   }) {
+    Color selectedColor = screenColor == Colors.white ? const Color(0xFF2D2041) : const Color(0xFF2D2041);
+    Color unselectedColor = screenColor == Colors.white ? Colors.black : Colors.grey;
     return InkWell(
       onTap: onTap,
       child: Container(
@@ -82,7 +88,7 @@ class CustomBottomNavigation extends StatelessWidget {
               )
             : Icon(
                 icon,
-                color: isSelected ? const Color(0xFF2D2041) : Colors.grey,
+                color: isSelected ? selectedColor : unselectedColor,
                 size: 24,
               ),
       ),

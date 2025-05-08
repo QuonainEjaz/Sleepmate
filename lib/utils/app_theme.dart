@@ -32,7 +32,12 @@ class AppTheme {
     color: Colors.white,
     height: 1.2,
   );
-
+  static TextStyle get titleExtraSmall => GoogleFonts.montserratAlternates(
+    fontSize: 18,
+    fontWeight: FontWeight.w600,
+    color: Colors.white,
+    height: 1.2,
+  );
   static TextStyle get labelLarge => GoogleFonts.montserratAlternates(
     fontSize: 14,
     fontWeight: FontWeight.w500,

@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../widgets/custom_bottom_navigation.dart';
+import '../widgets/custom_profile_drawer.dart';
 
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({Key? key}) : super(key: key);
@@ -220,11 +221,13 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         ),
       ),
       bottomNavigationBar: CustomBottomNavigation(
+        screenColor: Colors.purple,
         currentIndex: 0,
         onTap: (index) {
           // Handle tab changes if needed
         },
       ),
+      endDrawer: const CustomProfileDrawer(),
     );
   }
 }

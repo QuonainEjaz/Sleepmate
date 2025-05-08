@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../widgets/custom_bottom_navigation.dart';
 import '../utils/app_theme.dart';
+import '../widgets/custom_profile_drawer.dart';
 
 class SleepQualityFeedbackScreen extends StatefulWidget {
   const SleepQualityFeedbackScreen({super.key});
@@ -14,7 +15,7 @@ class _SleepQualityFeedbackScreenState extends State<SleepQualityFeedbackScreen>
   final TextEditingController _suggestionController = TextEditingController();
 
   Widget _buildRatingButton(int rating) {
-    final isSelected = _selectedRating == rating;
+    final isSelected = _selectedRating >= rating;
     return InkWell(
       onTap: () {
         setState(() {
@@ -24,8 +25,8 @@ class _SleepQualityFeedbackScreenState extends State<SleepQualityFeedbackScreen>
       child: Container(
         padding: const EdgeInsets.all(8),
         child: Icon(
-          Icons.thumb_up,
-          color: isSelected ? const Color(0xFF2D2041) : Colors.grey.shade300,
+          isSelected ? Icons.thumb_up : Icons.thumb_up_outlined,
+          color: isSelected ? const Color(0xFF2D2041) : const Color(0xFF000000),
           size: 28,
         ),
       ),
@@ -35,11 +36,13 @@ class _SleepQualityFeedbackScreenState extends State<SleepQualityFeedbackScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      drawer: const CustomProfileDrawer(),
       backgroundColor: Colors.white,
       body: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            const SizedBox(height: 20),
             Container(
               width: double.infinity,
               padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
@@ -48,50 +51,57 @@ class _SleepQualityFeedbackScreenState extends State<SleepQualityFeedbackScreen>
               ),
               child: Text(
                 'Sleep Quality Feedback',
+                textAlign: TextAlign.center,
                 style: AppTheme.modifyStyle(
                   AppTheme.titleMedium,
                   color: Colors.white,
                 ),
               ),
             ),
+            const SizedBox(height: 120),
             Expanded(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.all(24),
+                padding: const EdgeInsets.symmetric(horizontal: 40),
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
                     Text(
                       'Please give your feedback',
+                      textAlign: TextAlign.center,
                       style: AppTheme.modifyStyle(
-                        AppTheme.bodyLarge,
+                        AppTheme.titleSmall,
                         color: Colors.black87,
                       ),
                     ),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 30),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                       children: List.generate(
                         5,
-                        (index) => _buildRatingButton(index + 1),
+                        (index) {
+                          int buttonValue = index + 1;
+                          return _buildRatingButton(buttonValue);
+                        },
                       ),
                     ),
-                    const SizedBox(height: 32),
+                    const SizedBox(height: 50),
                     Text(
                       'Give any suggestion: (optional)',
                       style: AppTheme.modifyStyle(
-                        AppTheme.bodyMedium,
-                        color: Colors.black87,
+                        AppTheme.titleExtraSmall,
+                        color: const Color(0xFF000000),
                       ),
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 15),
                     Container(
+                      width: 250,
                       decoration: BoxDecoration(
-                        border: Border.all(color: Colors.grey.shade300),
-                        borderRadius: BorderRadius.circular(4),
+                        border: Border.all(color: const Color(0xFF31244C)),
+                        borderRadius: BorderRadius.circular(15),
                       ),
                       child: TextField(
                         controller: _suggestionController,
-                        maxLines: 4,
+                        maxLines: 5,
                         decoration: InputDecoration(
                           hintText: 'Write your suggestion here...',
                           hintStyle: AppTheme.modifyStyle(
@@ -103,9 +113,10 @@ class _SleepQualityFeedbackScreenState extends State<SleepQualityFeedbackScreen>
                         ),
                       ),
                     ),
-                    const SizedBox(height: 32),
-                    SizedBox(
-                      width: double.infinity,
+                    const SizedBox(height: 120),
+                    Center(
+                    child: SizedBox(
+                      width: 250,
                       child: ElevatedButton(
                         onPressed: () {
                           // Handle feedback submission
@@ -115,7 +126,7 @@ class _SleepQualityFeedbackScreenState extends State<SleepQualityFeedbackScreen>
                           backgroundColor: const Color(0xFF5C5470),
                           padding: const EdgeInsets.symmetric(vertical: 16),
                           shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(4),
+                            borderRadius: BorderRadius.circular(25),
                           ),
                           elevation: 0,
                         ),
@@ -127,6 +138,7 @@ class _SleepQualityFeedbackScreenState extends State<SleepQualityFeedbackScreen>
                           ),
                         ),
                       ),
+                    ),
                     ),
                   ],
                 ),

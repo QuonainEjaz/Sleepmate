@@ -84,6 +84,7 @@ class AppConstants {
   static const String dietaryHabitsRoute = '/dietary-habits';
   static const String environmentalFactorsRoute = '/environmental-factors';
   static const String sleepPatternsRoute = '/sleep-patterns';
+  static const String scheduleRoute = '/schedule';
   
   // Shared preferences keys
   static const String userIdKey = 'user_id';

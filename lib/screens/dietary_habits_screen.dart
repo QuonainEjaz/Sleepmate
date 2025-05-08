@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../utils/app_constants.dart';
 import '../widgets/custom_bottom_navigation.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../widgets/custom_profile_drawer.dart';
 
 class DietaryHabitsScreen extends StatefulWidget {
   const DietaryHabitsScreen({Key? key}) : super(key: key);
@@ -233,6 +234,7 @@ class _DietaryHabitsScreenState extends State<DietaryHabitsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      endDrawer: const CustomProfileDrawer(),
       backgroundColor: Colors.white,
       body: SafeArea(
         child: Column(
