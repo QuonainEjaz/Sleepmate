@@ -1,14 +1,27 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_core/firebase_core.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'firebase_options.dart';
+import 'package:provider/provider.dart';
+
+import 'providers/auth_provider.dart';
+import 'blocs/auth/auth_bloc.dart';
+import 'blocs/auth/auth_event.dart';
+import 'blocs/auth/auth_state.dart';
+import 'blocs/sleep_data/sleep_data_bloc.dart';
+import 'blocs/prediction/prediction_bloc.dart';
+
 import 'utils/app_constants.dart';
+import 'utils/app_bloc_observer.dart';
+import 'services/service_locator.dart';
+import 'services/api_service.dart';
+import 'services/auth_service.dart';
+import 'services/cache_service.dart';
+import 'services/logger_service.dart';
+
 import 'screens/splash_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/register_screen.dart';
-import 'screens/home_screen.dart';
-import 'screens/test_firebase_screen.dart';
 import 'screens/welcome_screen.dart';
 import 'screens/onboarding_screen.dart';
 import 'screens/sleep_quality_screen.dart';
@@ -21,7 +34,6 @@ import 'screens/prediction_screen.dart';
 import 'screens/prediction_graph_screen.dart';
 import 'screens/recommendation_screen.dart';
 import 'screens/sleep_quality_feedback_screen.dart';
-import 'providers/auth_provider.dart';
 import 'screens/splash_screen1.dart';
 import 'screens/forgot_password_screen.dart';
 import 'screens/settings_screen.dart';
@@ -30,7 +42,7 @@ import 'screens/notification_screen.dart';
 import 'screens/progress_report_screen.dart';
 import 'screens/schedule_screen.dart';
 
-// Error widget for Firebase initialization failure
+// Error widget for initialization failure
 class ErrorScreen extends StatelessWidget {
   final String message;
   const ErrorScreen({Key? key, required this.message}) : super(key: key);
@@ -45,7 +57,7 @@ class ErrorScreen extends StatelessWidget {
             children: [
               Icon(Icons.error_outline, color: Colors.red, size: 60),
               SizedBox(height: 16),
-              Text('Firebase Initialization Failed',
+              Text('Initialization Failed',
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
               SizedBox(height: 8),
               Padding(
@@ -68,101 +80,150 @@ class ErrorScreen extends StatelessWidget {
   }
 }
 
-Future<void> initializeFirebase() async {
+Future<void> initializeApp() async {
+  final logger = LoggerService();
+  
   try {
-    // Check if Firebase is already initialized
-    if (Firebase.apps.isEmpty) {
-      await Firebase.initializeApp(
-        options: DefaultFirebaseOptions.currentPlatform,
-      );
-      print('Firebase initialized successfully.');
-    } else {
-      // If Firebase is already initialized, get the default app
-      var app = Firebase.app();
-      print('Firebase already initialized with app: ${app.name}');
-    }
-  } catch (e) {
-    print('Firebase initialization error: $e');
-    // If there's a duplicate app error, try to get the existing app
-    if (e.toString().contains('duplicate-app')) {
-      try {
-        var app = Firebase.app();
-        print('Recovered from duplicate app error. Using existing app: ${app.name}');
-        return;
-      } catch (e2) {
-        print('Failed to recover from duplicate app error: $e2');
-        rethrow;
-      }
-    }
+    // Set preferred orientations
+    await SystemChrome.setPreferredOrientations([
+      DeviceOrientation.portraitUp,
+      DeviceOrientation.portraitDown,
+    ]);
+
+    // Initialize service locator and services
+    await setupServiceLocator();
+    
+    // Set up BlocObserver for state management monitoring
+    Bloc.observer = AppBlocObserver();
+    
+    // Initialize cache service
+    await serviceLocator<CacheService>().initialize();
+    
+    // API service is initialized through service locator
+    
+    logger.i('App services initialized successfully');
+  } catch (e, stackTrace) {
+    logger.e('Error initializing app services: $e', stackTrace);
     rethrow;
   }
 }
 
-void main() async {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
   try {
-    await initializeFirebase();
+    await initializeApp();
     runApp(const MyApp());
   } catch (e) {
-    print('Fatal error during app initialization: $e');
+    LoggerService().e('Fatal error during app initialization: $e');
     runApp(ErrorScreen(message: e.toString()));
   }
 }
 
-// Route for testing Firebase - defined here to avoid adding to app_constants.dart
-const String testFirebaseRoute = '/test-firebase';
+
 
 class MyApp extends StatelessWidget {
   const MyApp({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    return MultiProvider(
+    return MultiBlocProvider(
       providers: [
-        ChangeNotifierProvider(create: (_) => AuthProvider()),
-        // Add other providers as needed
-      ],
-      child: MaterialApp(
-        title: 'Sleep Prediction',
-        theme: ThemeData(
-          primaryColor: const Color(0xFF2A2438),
-          scaffoldBackgroundColor: const Color(0xFF2A2438),
-          textTheme: GoogleFonts.montserratAlternatesTextTheme(
-            Theme.of(context).textTheme,
-          ),
-          // Apply Montserrat Alternates to all text styles
-          useMaterial3: true,
+        BlocProvider<AuthBloc>(
+          create: (_) => serviceLocator<AuthBloc>(),
         ),
-        initialRoute: AppConstants.splashRoute,
-        routes: {
-          AppConstants.splashRoute: (context) => const SplashScreen(),
-          AppConstants.splashScreen1Route: (context) => const SplashScreen1(),
-          AppConstants.welcomeRoute: (context) => const WelcomeScreen(),
-          AppConstants.loginRoute: (context) => const LoginScreen(),
-          AppConstants.forgotPasswordRoute: (context) => const ForgotPasswordScreen(),
-          AppConstants.registerRoute: (context) => const RegisterScreen(),
-          AppConstants.onboardingRoute: (context) => const OnboardingScreen(),
-          AppConstants.sleepQualityRoute: (context) => const SleepQualityScreen(),
-          AppConstants.sleepDurationRoute: (context) => const SleepDurationScreen(),
-          AppConstants.sleepGoalsRoute: (context) => const SleepGoalsScreen(),
-          AppConstants.dietaryHabitsRoute: (context) => const DietaryHabitsScreen(),
-          AppConstants.environmentalFactorsRoute: (context) => const EnvironmentalFactorsScreen(),
-          AppConstants.sleepPatternsRoute: (context) => const SleepPatternsScreen(),
-          AppConstants.homeRoute: (context) => const HomeScreen(),
-          AppConstants.predictionRoute: (context) => const PredictionScreen(),
-          AppConstants.predictionGraphRoute: (context) => const PredictionGraphScreen(),
-          AppConstants.recommendationRoute: (context) => const RecommendationScreen(),
-          AppConstants.sleepQualityFeedbackRoute: (context) => const SleepQualityFeedbackScreen(),
-          testFirebaseRoute: (context) => const TestFirebaseScreen(),
-          '/settings': (context) => const SettingsScreen(),
-          '/account-info': (context) => const AccountInformationScreen(),
-          '/notifications': (context) => const NotificationScreen(),
-          '/progress-report': (context) => const ProgressReportScreen(),
-          AppConstants.scheduleRoute: (context) => const ScheduleScreen(),
-          // Add more routes as they are implemented
-        },
-        debugShowCheckedModeBanner: false,
+        BlocProvider<SleepDataBloc>(
+          create: (_) => serviceLocator<SleepDataBloc>(),
+        ),
+        BlocProvider<PredictionBloc>(
+          create: (_) => serviceLocator<PredictionBloc>(),
+        ),
+      ],
+      child: MultiProvider(
+        providers: [
+          ChangeNotifierProvider(create: (_) => AuthProvider()),
+          Provider<AuthService>(create: (_) => serviceLocator<AuthService>()),
+        ],
+        child: MaterialApp(
+          title: 'Sleep Prediction',
+          theme: ThemeData(
+            primaryColor: const Color(0xFF2A2438),
+            scaffoldBackgroundColor: const Color(0xFF2A2438),
+            textTheme: GoogleFonts.montserratAlternatesTextTheme(
+              Theme.of(context).textTheme,
+            ),
+            // Apply Montserrat Alternates to all text styles
+            useMaterial3: true,
+          ),
+          initialRoute: AppConstants.splashRoute,
+          onGenerateRoute: (settings) {
+            // Handle named routes with arguments
+            switch (settings.name) {
+              case AppConstants.splashRoute:
+                return MaterialPageRoute(builder: (_) => const SplashScreen());
+              case AppConstants.splashScreen1Route:
+                return MaterialPageRoute(builder: (_) => const SplashScreen1());
+              case AppConstants.welcomeRoute:
+                return MaterialPageRoute(builder: (_) => const WelcomeScreen());
+              case AppConstants.loginRoute:
+                return MaterialPageRoute(builder: (_) => const LoginScreen());
+              case AppConstants.forgotPasswordRoute:
+                return MaterialPageRoute(builder: (_) => const ForgotPasswordScreen());
+              case AppConstants.registerRoute:
+                return MaterialPageRoute(builder: (_) => const RegisterScreen());
+              case AppConstants.onboardingRoute:
+                return MaterialPageRoute(builder: (_) => const OnboardingScreen());
+              case AppConstants.sleepPatternsRoute:
+                return MaterialPageRoute(builder: (_) => const SleepPatternsScreen());
+              case AppConstants.dietaryHabitsRoute:
+                final args = settings.arguments as Map<String, dynamic>?;
+                return MaterialPageRoute(
+                  builder: (_) => DietaryHabitsScreen(
+                    sleepData: args?['sleepData'],
+                  ),
+                );
+              case AppConstants.environmentalFactorsRoute:
+                final args = settings.arguments as Map<String, dynamic>?;
+                return MaterialPageRoute(
+                  builder: (_) => EnvironmentalFactorsScreen(
+                    sleepData: args?['sleepData'],
+                    dietaryData: args?['dietaryData'],
+                  ),
+                );
+              case AppConstants.predictionRoute:
+                final args = settings.arguments as Map<String, dynamic>?;
+                return MaterialPageRoute(
+                  builder: (_) => PredictionScreen(
+                    sleepData: args?['sleepData'],
+                    dietaryData: args?['dietaryData'],
+                    environmentalData: args?['environmentalData'],
+                  ),
+                );
+              case AppConstants.homeRoute:
+                // Redirect to welcome screen as home screen is not available
+                return MaterialPageRoute(builder: (_) => const WelcomeScreen());
+              case AppConstants.predictionGraphRoute:
+                return MaterialPageRoute(builder: (_) => const PredictionGraphScreen());
+              case AppConstants.recommendationRoute:
+                return MaterialPageRoute(builder: (_) => const RecommendationScreen());
+              case AppConstants.sleepQualityFeedbackRoute:
+                return MaterialPageRoute(builder: (_) => const SleepQualityFeedbackScreen());
+              case '/settings':
+                return MaterialPageRoute(builder: (_) => const SettingsScreen());
+              case '/account-info':
+                return MaterialPageRoute(builder: (_) => const AccountInformationScreen());
+              case '/notifications':
+                return MaterialPageRoute(builder: (_) => const NotificationScreen());
+              case '/progress-report':
+                return MaterialPageRoute(builder: (_) => const ProgressReportScreen());
+              case AppConstants.scheduleRoute:
+                return MaterialPageRoute(builder: (_) => const ScheduleScreen());
+              default:
+                return MaterialPageRoute(builder: (_) => const SplashScreen());
+            }
+          },
+          debugShowCheckedModeBanner: false,
+        ),
       ),
     );
   }

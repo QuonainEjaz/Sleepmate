@@ -202,7 +202,7 @@ class _SleepPatternsScreenState extends State<SleepPatternsScreen> {
                   children: [
                     Expanded(
                       child: TextField(
-                          controller: TextEditingController(text: value.toString()),
+                        controller: TextEditingController(text: value.toString()),
                         keyboardType: TextInputType.number,
                         textAlign: TextAlign.center,
                         style: GoogleFonts.montaga(
@@ -274,6 +274,36 @@ class _SleepPatternsScreenState extends State<SleepPatternsScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  // Build sleep data map from form inputs
+  Map<String, dynamic> _buildSleepData() {
+    return {
+      'weekdayBedtime': _formatTime(_weekdayBedtime),
+      'weekdayWakeup': _formatTime(_weekdayWakeup),
+      'weekendBedtime': _formatTime(_weekendBedtime),
+      'weekendWakeup': _formatTime(_weekendWakeup),
+      'sleepDuration': _sleepDuration,
+      'awakenings': _awakenings,
+      'sleepQuality': _rateSleepQuality,
+      'relaxedBeforeSleep': _relaxedBeforeSleep,
+      'useElectronics': _useElectronics,
+      'stressLevel': _stressLevel,
+    };
+  }
+
+  // Save sleep data and navigate to next screen
+  void _saveAndContinue() {
+    final sleepData = _buildSleepData();
+    
+    // Navigate to DietaryHabitsScreen with the sleep data
+    Navigator.pushNamed(
+      context,
+      AppConstants.dietaryHabitsRoute,
+      arguments: {
+        'sleepData': sleepData,
+      },
     );
   }
 
@@ -401,38 +431,48 @@ class _SleepPatternsScreenState extends State<SleepPatternsScreen> {
                       'How relaxed do you feel before sleep?',
                       _relaxedBeforeSleep,
                       (val) => setState(() => _relaxedBeforeSleep = val),
-                      subtitle: '(1 for worst and 5 for best)',
+                      subtitle: '(1 for not relaxed, 5 for very relaxed)',
                       min: 1,
                       max: 5,
                       showIcons: false,
                       hintText: '1 - 5',
                     ),
+                    const SizedBox(height: 24),
+                    _buildStepper(
+                      'Stress Level',
+                      _stressLevel.toInt(),
+                      (val) => setState(() => _stressLevel = val.toDouble()),
+                      subtitle: '(1 for low, 5 for high)',
+                      min: 1,
+                      max: 5,
+                      showIcons: false,
+                      hintText: '1 - 5',
+                    ),
+                    const SizedBox(height: 32),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 56,
+                      child: ElevatedButton(
+                        onPressed: _saveAndContinue,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF2A2438),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          elevation: 0,
+                        ),
+                        child: Text(
+                          'Next: Dietary Habits',
+                          style: GoogleFonts.montserrat(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 24),
                   ],
-                ),
-              ),
-            ),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.only(left: 24, right: 24),
-              child: ElevatedButton(
-                onPressed: () {
-                  Navigator.pushNamed(context, AppConstants.dietaryHabitsRoute);
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF65558F),
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(25),
-                  ),
-                  elevation: 0,
-                ),
-                child: Text(
-                  'Next',
-                  style: GoogleFonts.montaga(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w900,
-                    color: Colors.white,
-                  ),
                 ),
               ),
             ),

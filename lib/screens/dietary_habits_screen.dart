@@ -4,8 +4,48 @@ import '../widgets/custom_bottom_navigation.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../widgets/custom_profile_drawer.dart';
 
+class SquareCheckbox extends StatelessWidget {
+  final bool selected;
+  final Color fillColor;
+  final VoidCallback onTap;
+
+  const SquareCheckbox({
+    Key? key,
+    required this.selected,
+    required this.fillColor,
+    required this.onTap,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 18,
+        height: 18,
+        margin: const EdgeInsets.only(right: 5),
+        decoration: BoxDecoration(
+          color: selected ? fillColor : Colors.transparent,
+          borderRadius: BorderRadius.circular(2),
+          border: Border.all(
+            color: selected ? fillColor : Colors.grey,
+            width: 2,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class DietaryHabitsScreen extends StatefulWidget {
-  const DietaryHabitsScreen({Key? key}) : super(key: key);
+  final bool onSaveOnly;
+  final Map<String, dynamic>? sleepData;
+  
+  const DietaryHabitsScreen({
+    Key? key, 
+    this.onSaveOnly = false,
+    this.sleepData,
+  }) : super(key: key);
 
   @override
   State<DietaryHabitsScreen> createState() => _DietaryHabitsScreenState();
@@ -22,6 +62,141 @@ class _DietaryHabitsScreenState extends State<DietaryHabitsScreen> {
   String _lunchPortionSize = '400g';
   String _dinnerPortionSize = '400g';
   int _mealsPerDay = 3;
+  bool _caffeineAfterNoon = false;
+  bool _alcoholBeforeBed = false;
+  bool _heavyMealBeforeBed = false;
+  int _waterIntake = 8; // in glasses
+  bool _mealTimingConsistent = true;
+  bool _balancedMeals = true;
+  bool _lateNightSnacking = false;
+
+  // Add selected food type for each meal
+  Set<String> _selectedBreakfastFoodTypes = {'Carbohydrates'};
+  Set<String> _selectedLunchFoodTypes = {'Carbohydrates'};
+  Set<String> _selectedDinnerFoodTypes = {'Carbohydrates'};
+
+  final List<String> _foodTypes = [
+    'Carbohydrates',
+    'Proteins',
+    'Fats',
+    'Beverage intake',
+    'Fruits and Vegetables',
+  ];
+
+  final GlobalKey mealsKey = GlobalKey();
+  List<GlobalKey> _portionKeys = List.generate(8, (_) => GlobalKey());
+  
+  // Helper method to build dietary data object
+  Map<String, dynamic> _buildDietaryData() {
+    // Convert TimeOfDay to string format
+    String _formatTimeForData(TimeOfDay time) {
+      final hour = time.hour.toString().padLeft(2, '0');
+      final minute = time.minute.toString().padLeft(2, '0');
+      return '$hour:$minute';
+    }
+    
+    // Parse portion sizes (removing 'g' and converting to number)
+    int _parsePortionSize(String portion) {
+      final match = RegExp(r'(\d+)').firstMatch(portion);
+      return match != null ? int.parse(match.group(1)!) : 400;
+    }
+    
+    return {
+      'mealsPerDay': _mealsPerDay,
+      'meals': [
+        {
+          'type': 'breakfast',
+          'isRegular': _isBreakfastRegular,
+          'time': _formatTimeForData(_breakfastTime),
+          'portionSize': _parsePortionSize(_breakfastPortionSize),
+          'foodTypes': _selectedBreakfastFoodTypes.toList(),
+        },
+        {
+          'type': 'lunch',
+          'isRegular': _isLunchRegular,
+          'time': _formatTimeForData(_lunchTime),
+          'portionSize': _parsePortionSize(_lunchPortionSize),
+          'foodTypes': _selectedLunchFoodTypes.toList(),
+        },
+        {
+          'type': 'dinner',
+          'isRegular': _isDinnerRegular,
+          'time': _formatTimeForData(_dinnerTime),
+          'portionSize': _parsePortionSize(_dinnerPortionSize),
+          'foodTypes': _selectedDinnerFoodTypes.toList(),
+        },
+      ],
+      'caffeineAfterNoon': _caffeineAfterNoon,
+      'alcoholBeforeBed': _alcoholBeforeBed,
+      'heavyMealBeforeBed': _heavyMealBeforeBed,
+      'waterIntake': _waterIntake,
+      'mealTimingConsistent': _mealTimingConsistent,
+      'balancedMeals': _balancedMeals,
+      'lateNightSnacking': _lateNightSnacking,
+    };
+  }
+
+  Widget _buildFoodTypeCheckboxList(String meal) {
+    Set<String> selected;
+    void Function(String, bool) onChanged;
+    if (meal == 'Take Breakfast') {
+      selected = _selectedBreakfastFoodTypes;
+      onChanged = (val, checked) => setState(() {
+        if (checked) {
+          _selectedBreakfastFoodTypes.add(val);
+        } else {
+          _selectedBreakfastFoodTypes.remove(val);
+        }
+      });
+    } else if (meal == 'Do Lunch') {
+      selected = _selectedLunchFoodTypes;
+      onChanged = (val, checked) => setState(() {
+        if (checked) {
+          _selectedLunchFoodTypes.add(val);
+        } else {
+          _selectedLunchFoodTypes.remove(val);
+        }
+      });
+    } else {
+      selected = _selectedDinnerFoodTypes;
+      onChanged = (val, checked) => setState(() {
+        if (checked) {
+          _selectedDinnerFoodTypes.add(val);
+        } else {
+          _selectedDinnerFoodTypes.remove(val);
+        }
+      });
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: _foodTypes.map((type) {
+        final bool isChecked = selected.contains(type);
+        return GestureDetector(
+          onTap: () => onChanged(type, !isChecked),
+          child: Padding(
+            padding: const EdgeInsets.only(bottom: 4),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.circle,
+                  size: 16,
+                  color: isChecked ? Color(0xFF2D2041) : Colors.grey[350],
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  type,
+                  style: GoogleFonts.montaga(
+                    fontSize: 16,
+                    color: Color(0xFF2D2041),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      }).toList(),
+    );
+  }
 
   String _formatTime(TimeOfDay time) {
     String hour = time.hour.toString().padLeft(2, '0');
@@ -29,79 +204,190 @@ class _DietaryHabitsScreenState extends State<DietaryHabitsScreen> {
     return '$hour:$minute';
   }
 
-  Widget _buildMealSection(String title, bool isRegular, TimeOfDay mealTime, String portionSize) {
+  Widget _buildBulletPoint(String text, Color color) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4),
+      child: Row(
+        children: [
+          Icon(
+            Icons.circle,
+            size: 12,
+            color: color,
+          ),
+          const SizedBox(width: 8),
+          Text(
+            text,
+            style: GoogleFonts.montaga(
+              fontSize: 16,
+              color: Color(0xFF2D2041),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _selectMealTime(BuildContext context, String meal) async {
+    TimeOfDay initialTime;
+    if (meal == 'Take Breakfast') {
+      initialTime = _breakfastTime;
+    } else if (meal == 'Do Lunch') {
+      initialTime = _lunchTime;
+    } else {
+      initialTime = _dinnerTime;
+    }
+    final TimeOfDay? picked = await showTimePicker(
+      context: context,
+      initialTime: initialTime,
+    );
+    if (picked != null) {
+      setState(() {
+        if (meal == 'Take Breakfast') {
+          _breakfastTime = picked;
+        } else if (meal == 'Do Lunch') {
+          _lunchTime = picked;
+        } else {
+          _dinnerTime = picked;
+        }
+      });
+    }
+  }
+
+  Widget _buildMealTimeField(String meal, TimeOfDay mealTime) {
+    return InkWell(
+      onTap: () => _selectMealTime(context, meal),
+      child: Container(
+        width: 135,
+        height: 35,
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        decoration: BoxDecoration(
+          border: Border.all(color: const Color(0xFF31244C), width: 2),
+          borderRadius: BorderRadius.circular(10),
+          color: Colors.white,
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              _formatTime(mealTime) + (mealTime.period == DayPeriod.am ? ' am' : ' pm'),
+              style: GoogleFonts.montaga(
+                fontSize: 16,
+                color: Colors.black87,
+              ),
+            ),
+            Image.asset(
+                  'assets/icons/timer.png',
+                  width: 22,
+                  height: 22,
+                  color: Colors.grey.shade600,
+                ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMealSection(int index, String title, bool isRegular, TimeOfDay mealTime, String portionSize) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(
-              title,
-              style: const TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: 14,
-                color: Colors.black87,
+            SizedBox(
+              width: 120,
+              child: Text(
+                title,
+                style: GoogleFonts.montaga(
+                  fontSize: 16,
+                  color: Colors.black87,
+                ),
               ),
             ),
             Row(
               children: [
-                Row(
-                  children: [
-                    Radio<bool>(
-                      value: true,
-                      groupValue: isRegular,
-                      onChanged: (value) {
-                        setState(() {
-                          if (title == 'Take Breakfast') {
-                            _isBreakfastRegular = value!;
-                          } else if (title == 'Do Lunch') {
-                            _isLunchRegular = value!;
-                          } else {
-                            _isDinnerRegular = value!;
-                          }
-                        });
-                      },
-                      activeColor: const Color(0xFF2D2041),
-                    ),
-                    const Text(
-                      'Regular',
-                      style: TextStyle(
-                        fontFamily: 'Poppins',
-                        fontSize: 12,
-                        color: Colors.black87,
+                GestureDetector(
+                  onTap: () {
+                    setState(() {
+                      if (title == 'Take Breakfast') {
+                        _isBreakfastRegular = true;
+                      } else if (title == 'Do Lunch') {
+                        _isLunchRegular = true;
+                      } else {
+                        _isDinnerRegular = true;
+                      }
+                    });
+                  },
+                  child: Row(
+                    children: [
+                      SquareCheckbox(
+                        selected: isRegular,
+                        fillColor: const Color(0xFF2D2041),
+                        onTap: () {
+                          setState(() {
+                            if (title == 'Take Breakfast') {
+                              _isBreakfastRegular = true;
+                            } else if (title == 'Do Lunch') {
+                              _isLunchRegular = true;
+                            } else {
+                              _isDinnerRegular = true;
+                            }
+                          });
+                        },
                       ),
-                    ),
-                  ],
+                      SizedBox(
+                        width: 60,
+                        child: Text(
+                          'Regular',
+                          style: GoogleFonts.montaga(
+                            fontSize: 16,
+                            color: Color(0xFF2D2041),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-                const SizedBox(width: 8),
-                Row(
-                  children: [
-                    Radio<bool>(
-                      value: false,
-                      groupValue: isRegular,
-                      onChanged: (value) {
-                        setState(() {
-                          if (title == 'Take Breakfast') {
-                            _isBreakfastRegular = value!;
-                          } else if (title == 'Do Lunch') {
-                            _isLunchRegular = value!;
-                          } else {
-                            _isDinnerRegular = value!;
-                          }
-                        });
-                      },
-                      activeColor: const Color(0xFF2D2041),
-                    ),
-                    const Text(
-                      'Not Regular',
-                      style: TextStyle(
-                        fontFamily: 'Poppins',
-                        fontSize: 12,
-                        color: Colors.black87,
+                GestureDetector(
+                  onTap: () {
+                    setState(() {
+                      if (title == 'Take Breakfast') {
+                        _isBreakfastRegular = false;
+                      } else if (title == 'Do Lunch') {
+                        _isLunchRegular = false;
+                      } else {
+                        _isDinnerRegular = false;
+                      }
+                    });
+                  },
+                  child: Row(
+                    children: [
+                      SquareCheckbox(
+                        selected: !isRegular,
+                        fillColor: const Color(0xFF2D2041),
+                        onTap: () {
+                          setState(() {
+                            if (title == 'Take Breakfast') {
+                              _isBreakfastRegular = false;
+                            } else if (title == 'Do Lunch') {
+                              _isLunchRegular = false;
+                            } else {
+                              _isDinnerRegular = false;
+                            }
+                          });
+                        },
                       ),
-                    ),
-                  ],
+                      SizedBox(
+                        width: 80,
+                        child: Text(
+                          'Not Regular',
+                          style: GoogleFonts.montaga(
+                            fontSize: 16,
+                            color: Color(0xFF2D2041),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),
@@ -109,96 +395,123 @@ class _DietaryHabitsScreenState extends State<DietaryHabitsScreen> {
         ),
         const SizedBox(height: 12),
         Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            SizedBox(
+              width: 120,
+              child: Text(
+                'Time',
+                style: GoogleFonts.montaga(
+                  fontSize: 16,
+                  color: Color(0xFF2D2041),
+                ),
+              ),
+            ),
+            SizedBox(width: 16),
+            _buildMealTimeField(title, mealTime),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Food Type',
-                  style: TextStyle(
-                    fontFamily: 'Poppins',
-                    fontSize: 14,
-                    color: Colors.black87,
-                  ),
+            SizedBox(
+              width: 120,
+              child: Text(
+                'Food Type',
+                style: GoogleFonts.montaga(
+                  fontSize: 16,
+                  color: Color(0xFF2D2041),
                 ),
-                const SizedBox(height: 8),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  decoration: BoxDecoration(
-                    border: Border.all(color: Colors.grey.shade300),
-                    borderRadius: BorderRadius.circular(4),
-                    color: Colors.white,
-                  ),
-                  child: Row(
-                    children: [
-                      Text(
-                        _formatTime(mealTime),
-                        style: const TextStyle(
-                          fontFamily: 'Poppins',
-                          fontSize: 14,
-                          color: Colors.black87,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Icon(
-                        Icons.access_time,
-                        size: 16,
-                        color: Colors.grey.shade600,
-                      ),
-                    ],
-                  ),
+              ),
+            ),
+            SizedBox(width: 16),
+            Expanded(child: _buildFoodTypeCheckboxList(title)),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            SizedBox(
+              width: 120,
+              child: Text(
+                'Portion size',
+                style: GoogleFonts.montaga(
+                  fontSize: 16,
+                  color: Color(0xFF2D2041),
                 ),
-                const SizedBox(height: 8),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+              ),
+            ),
+            SizedBox(width: 16),
+            Expanded(
+              child: Container(
+                key: _portionKeys[index],
+                height: 40,
+                padding: EdgeInsets.symmetric(horizontal: 12),
+                decoration: BoxDecoration(
+                  border: Border.all(color: Color(0xFF2D2041), width: 2),
+                  borderRadius: BorderRadius.circular(12),
+                  color: Colors.white,
+                ),
+                child: Row(
                   children: [
-                    _buildBulletPoint('Carbohydrates'),
-                    _buildBulletPoint('Proteins'),
-                    _buildBulletPoint('Beverage intake'),
-                    _buildBulletPoint('Fruits and Vegetables'),
+                    Expanded(
+                      child: TextField(
+                        controller: TextEditingController(text: portionSize),
+                        style: GoogleFonts.montaga(
+                          fontSize: 16,
+                          color: Color(0xFF2D2041),
+                        ),
+                        decoration: InputDecoration(
+                          border: InputBorder.none,
+                          isDense: true,
+                          contentPadding: EdgeInsets.zero,
+                        ),
+                        onChanged: (val) {
+                          setState(() {
+                            if (title == 'Take Breakfast') {
+                              _breakfastPortionSize = val;
+                            } else if (title == 'Do Lunch') {
+                              _lunchPortionSize = val;
+                            } else {
+                              _dinnerPortionSize = val;
+                            }
+                          });
+                        },
+                      ),
+                    ),
+                    GestureDetector(
+                      onTap: () async {
+                        final List<String> portionOptions = List.generate(20, (i) => '${(i + 1) * 100}g');
+                        await showCustomDropdown<String>(
+                          context: context,
+                          key: _portionKeys[index],
+                          items: portionOptions,
+                          itemBuilder: (item) => Text(item, style: GoogleFonts.montaga(fontSize: 16)),
+                          onSelected: (val) {
+                            setState(() {
+                              if (title == 'Take Breakfast') {
+                                _breakfastPortionSize = val;
+                              } else if (title == 'Do Lunch') {
+                                _lunchPortionSize = val;
+                              } else {
+                                _dinnerPortionSize = val;
+                              }
+                            });
+                          },
+                          minHeight: 100,
+                          maxHeight: 250,
+                        );
+                      },
+                      child: Icon(
+                        Icons.expand_more,
+                        color: Color(0xFF2D2041),
+                      ),
+                    ),
                   ],
                 ),
-              ],
-            ),
-            const Spacer(),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Portion size',
-                  style: TextStyle(
-                    fontFamily: 'Poppins',
-                    fontSize: 14,
-                    color: Colors.black87,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  decoration: BoxDecoration(
-                    border: Border.all(color: Colors.grey.shade300),
-                    borderRadius: BorderRadius.circular(4),
-                    color: Colors.white,
-                  ),
-                  child: Row(
-                    children: [
-                      Text(
-                        portionSize,
-                        style: const TextStyle(
-                          fontFamily: 'Poppins',
-                          fontSize: 14,
-                          color: Colors.black87,
-                        ),
-                      ),
-                      Icon(
-                        Icons.arrow_drop_down,
-                        color: Colors.grey.shade600,
-                      ),
-                    ],
-                  ),
-                ),
-              ],
+              ),
             ),
           ],
         ),
@@ -207,27 +520,62 @@ class _DietaryHabitsScreenState extends State<DietaryHabitsScreen> {
     );
   }
 
-  Widget _buildBulletPoint(String text) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 4),
-      child: Row(
-        children: [
-          Icon(
-            Icons.circle,
-            size: 6,
-            color: Colors.grey.shade600,
-          ),
-          const SizedBox(width: 8),
-          Text(
-            text,
-            style: const TextStyle(
-              fontFamily: 'Poppins',
-              fontSize: 12,
-              color: Colors.black87,
-            ),
-          ),
-        ],
+  // Add helper for showing a custom dropdown menu below a widget
+  Future<T?> showCustomDropdown<T>({
+    required BuildContext context,
+    required GlobalKey key,
+    required List<T> items,
+    required Widget Function(T) itemBuilder,
+    required void Function(T) onSelected,
+    double minHeight = 100,
+    double maxHeight = 250,
+  }) async {
+    final RenderBox renderBox = key.currentContext!.findRenderObject() as RenderBox;
+    final Offset offset = renderBox.localToGlobal(Offset.zero);
+    final Size size = renderBox.size;
+    final selected = await showMenu<T>(
+      context: context,
+      position: RelativeRect.fromLTRB(
+        offset.dx,
+        offset.dy + size.height,
+        offset.dx + size.width,
+        offset.dy + size.height + maxHeight,
       ),
+      constraints: BoxConstraints(
+        minHeight: minHeight,
+        maxHeight: maxHeight,
+        minWidth: size.width,
+        maxWidth: size.width,
+      ),
+      items: items.map((item) {
+        return PopupMenuItem<T>(
+          value: item,
+          child: itemBuilder(item),
+        );
+      }).toList(),
+    );
+    if (selected != null) {
+      onSelected(selected);
+    }
+    return selected;
+  }
+
+  // Save dietary data and navigate to next screen
+  void _saveAndContinue() {
+    final dietaryData = _buildDietaryData();
+    
+    if (widget.onSaveOnly) {
+      Navigator.of(context).pop(dietaryData);
+      return;
+    }
+    
+    Navigator.pushNamed(
+      context, 
+      AppConstants.environmentalFactorsRoute,
+      arguments: {
+        'sleepData': widget.sleepData,
+        'dietaryData': dietaryData,
+      },
     );
   }
 
@@ -264,40 +612,80 @@ class _DietaryHabitsScreenState extends State<DietaryHabitsScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _buildMealSection('Take Breakfast', _isBreakfastRegular, _breakfastTime, _breakfastPortionSize),
-                    _buildMealSection('Do Lunch', _isLunchRegular, _lunchTime, _lunchPortionSize),
-                    _buildMealSection('Have Dinner', _isDinnerRegular, _dinnerTime, _dinnerPortionSize),
+                    _buildMealSection(0, 'Take Breakfast', _isBreakfastRegular, _breakfastTime, _breakfastPortionSize),
+                    _buildMealSection(1, 'Do Lunch', _isLunchRegular, _lunchTime, _lunchPortionSize),
+                    _buildMealSection(2, 'Have Dinner', _isDinnerRegular, _dinnerTime, _dinnerPortionSize),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Text(
-                          'No. of meals per day',
-                          style: TextStyle(
-                            fontFamily: 'Poppins',
-                            fontSize: 14,
-                            color: Colors.black87,
+                        SizedBox(
+                          width: 120,
+                          child: const Text(
+                            'No. of meals per day',
+                            style: TextStyle(
+                              fontFamily: 'Poppins',
+                              fontSize: 16,
+                              color: Colors.black87,
+                            ),
                           ),
                         ),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          key: mealsKey,
+                          height: 40,
+                          padding: const EdgeInsets.symmetric(horizontal: 12),
                           decoration: BoxDecoration(
-                            border: Border.all(color: Colors.grey.shade300),
-                            borderRadius: BorderRadius.circular(4),
+                            border: Border.all(color: Color(0xFF2D2041), width: 2),
+                            borderRadius: BorderRadius.circular(12),
                             color: Colors.white,
                           ),
                           child: Row(
                             children: [
-                              Text(
-                                _mealsPerDay.toString(),
-                                style: const TextStyle(
-                                  fontFamily: 'Poppins',
-                                  fontSize: 14,
-                                  color: Colors.black87,
+                              SizedBox(
+                                width: 30,
+                                child: TextField(
+                                  controller: TextEditingController(text: _mealsPerDay.toString()),
+                                  keyboardType: TextInputType.number,
+                                  style: const TextStyle(
+                                    fontFamily: 'Poppins',
+                                    fontSize: 16,
+                                    color: Colors.black87,
+                                  ),
+                                  decoration: const InputDecoration(
+                                    border: InputBorder.none,
+                                    isDense: true,
+                                    contentPadding: EdgeInsets.zero,
+                                  ),
+                                  onChanged: (val) {
+                                    final int? newValue = int.tryParse(val);
+                                    if (newValue != null && newValue >= 1 && newValue <= 8) {
+                                      setState(() {
+                                        _mealsPerDay = newValue;
+                                      });
+                                    }
+                                  },
                                 ),
                               ),
-                              Icon(
-                                Icons.arrow_drop_down,
-                                color: Colors.grey.shade600,
+                              GestureDetector(
+                                onTap: () async {
+                                  final List<int> mealOptions = List.generate(8, (i) => i + 1);
+                                  await showCustomDropdown<int>(
+                                    context: context,
+                                    key: mealsKey,
+                                    items: mealOptions,
+                                    itemBuilder: (item) => Text(item.toString(), style: GoogleFonts.montaga(fontSize: 16)),
+                                    onSelected: (val) {
+                                      setState(() {
+                                        _mealsPerDay = val;
+                                      });
+                                    },
+                                    minHeight: 100,
+                                    maxHeight: 250,
+                                  );
+                                },
+                                child: Icon(
+                                  Icons.expand_more,
+                                  color: Color(0xFF2D2041),
+                                ),
                               ),
                             ],
                           ),
@@ -313,6 +701,16 @@ class _DietaryHabitsScreenState extends State<DietaryHabitsScreen> {
               padding: const EdgeInsets.only(top: 16, left: 24, right: 24),
               child: ElevatedButton(
                 onPressed: () {
+                  // Build dietary data object
+                  final dietaryData = _buildDietaryData();
+                  
+                  // If in onSaveOnly mode, return data without navigation
+                  if (widget.onSaveOnly) {
+                    Navigator.of(context).pop(dietaryData);
+                    return;
+                  }
+                  
+                  // Otherwise proceed with normal navigation
                   Navigator.pushNamed(context, AppConstants.environmentalFactorsRoute);
                 },
                 style: ElevatedButton.styleFrom(

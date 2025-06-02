@@ -2,7 +2,12 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 
 class SleepFactorsPieChart extends StatelessWidget {
-  const SleepFactorsPieChart({super.key});
+  final Map<String, dynamic> contributingFactors;
+  
+  const SleepFactorsPieChart({
+    super.key,
+    required this.contributingFactors,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -21,9 +26,20 @@ class SleepFactorsPieChart extends StatelessWidget {
         SizedBox(
           width: 300,
           height: 300,
-          child: CustomPaint(
-            painter: PieChartPainter(),
-          ),
+          child: contributingFactors.isEmpty
+            ? const Center(
+                child: Text(
+                  'No prediction data available yet.',
+                  style: TextStyle(
+                    fontFamily: 'Poppins',
+                    fontSize: 14,
+                    color: Colors.black54,
+                  ),
+                ),
+              )
+            : CustomPaint(
+                painter: PieChartPainter(contributingFactors: contributingFactors),
+              ),
         ),
       ],
     );
@@ -31,36 +47,94 @@ class SleepFactorsPieChart extends StatelessWidget {
 }
 
 class PieChartPainter extends CustomPainter {
+  final Map<String, dynamic> contributingFactors;
+  
+  PieChartPainter({required this.contributingFactors});
+  
   @override
   void paint(Canvas canvas, Size size) {
     final center = Offset(size.width / 2, size.height / 2);
     final radius = min(size.width, size.height) / 2;
     
-    // Define colors for each section
-    final colors = [
-      const Color(0xFFE6D8F5), // Light purple for Sleep
-      const Color(0xFFFFB5B5), // Light red for Midnight Awakenings
-      const Color(0xFFFFE5CC), // Light orange for High Temperature
-      const Color(0xFFB5E6FF), // Light blue for Device Use
-      const Color(0xFFD1F2D1), // Light green for Dietary
-    ];
-
-    // Define section sizes (in radians)
-    final sections = [
-      0.35, // Sleep - 35%
-      0.25, // Midnight Awakenings - 25%
-      0.20, // High Temperature - 20%
-      0.12, // Device Use - 12%
-      0.08, // Dietary - 8%
-    ];
-
+    // Define standard colors to use for factors
+    final colorMap = {
+      'sleep_quality': const Color(0xFFE6D8F5),      // Light purple
+      'awakenings': const Color(0xFFFFB5B5),          // Light red
+      'temperature': const Color(0xFFFFE5CC),          // Light orange
+      'screen_time': const Color(0xFFB5E6FF),          // Light blue
+      'caffeine': const Color(0xFFD1F2D1),            // Light green
+      'exercise': const Color(0xFFFFF7B5),            // Light yellow
+      'stress': const Color(0xFFFFCCE5),              // Light pink
+      'default': const Color(0xFFE0E0E0),             // Light gray for unknown factors
+    };
+    
+    // Parse contributing factors and sort by impact
+    final factors = <Map<String, dynamic>>[];
+    contributingFactors.forEach((key, value) {
+      if (value is num && value > 0) {
+        factors.add({
+          'name': key,
+          'value': value,
+          'color': colorMap[key] ?? colorMap['default']!,
+        });
+      }
+    });
+    
+    // Sort factors by value (highest impact first)
+    factors.sort((a, b) => (b['value'] as num).compareTo(a['value'] as num));
+    
+    // Limit to top 5 factors for display clarity
+    final displayFactors = factors.length > 5 ? factors.sublist(0, 5) : factors;
+    
+    // If no factors, draw an empty circle with message
+    if (displayFactors.isEmpty) {
+      final paint = Paint()
+        ..color = const Color(0xFFE0E0E0)
+        ..style = PaintingStyle.fill;
+        
+      canvas.drawCircle(center, radius, paint);
+      
+      const textSpan = TextSpan(
+        text: 'No data',
+        style: TextStyle(
+          color: Colors.black54,
+          fontSize: 16,
+          fontFamily: 'Poppins',
+        ),
+      );
+      
+      final textPainter = TextPainter(
+        text: textSpan,
+        textAlign: TextAlign.center,
+        textDirection: TextDirection.ltr,
+      );
+      
+      textPainter.layout();
+      textPainter.paint(
+        canvas, 
+        Offset(
+          center.dx - textPainter.width / 2,
+          center.dy - textPainter.height / 2,
+        ),
+      );
+      
+      return;
+    }
+    
+    // Calculate total value for percentage calculation
+    final totalValue = displayFactors.fold<double>(
+      0, (sum, factor) => sum + (factor['value'] as num).toDouble());
+    
+    // Draw chart sections
     var startAngle = -pi / 2; // Start from the top
 
-    // Draw each section
-    for (var i = 0; i < sections.length; i++) {
-      final sweepAngle = 2 * pi * sections[i];
+    for (var factor in displayFactors) {
+      final value = (factor['value'] as num).toDouble();
+      final percentage = value / totalValue;
+      final sweepAngle = 2 * pi * percentage;
+      
       final paint = Paint()
-        ..color = colors[i]
+        ..color = factor['color'] as Color
         ..style = PaintingStyle.fill;
 
       canvas.drawArc(
@@ -89,25 +163,29 @@ class PieChartPainter extends CustomPainter {
     }
 
     // Draw labels
-    final labels = [
-      'Sleep',
-      'Midnight\nAwakenings',
-      'High Temperature\n(45°)',
-      'Device Use\n(blue light exposure)',
-      'Dietary\nhabits',
-    ];
-
     startAngle = -pi / 2;
-    final textStyle = TextStyle(
+    final textStyle = const TextStyle(
       color: Colors.black54,
       fontSize: 10,
       fontFamily: 'Poppins',
       fontWeight: FontWeight.w500,
     );
 
-    for (var i = 0; i < sections.length; i++) {
-      final sweepAngle = 2 * pi * sections[i];
+    for (var i = 0; i < displayFactors.length; i++) {
+      final factor = displayFactors[i];
+      final value = (factor['value'] as num).toDouble();
+      final percentage = value / totalValue;
+      final sweepAngle = 2 * pi * percentage;
       final angle = startAngle + (sweepAngle / 2);
+      
+      // Format factor name for display
+      String factorName = factor['name'] as String;
+      factorName = factorName.replaceAll('_', ' ');
+      factorName = '${factorName[0].toUpperCase()}${factorName.substring(1)}';
+      
+      // Format percentage for display
+      final percentageText = '${(percentage * 100).toStringAsFixed(1)}%';
+      final labelText = '$factorName\n$percentageText';
       
       // Calculate label position
       final labelRadius = radius * 0.7; // Position labels at 70% of the radius
@@ -115,7 +193,7 @@ class PieChartPainter extends CustomPainter {
       final y = center.dy + sin(angle) * labelRadius;
 
       final textSpan = TextSpan(
-        text: labels[i],
+        text: labelText,
         style: textStyle,
       );
       final textPainter = TextPainter(
@@ -140,4 +218,4 @@ class PieChartPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-} 
+}

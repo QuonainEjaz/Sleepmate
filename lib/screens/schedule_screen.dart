@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../widgets/custom_profile_drawer.dart';
 import '../widgets/custom_bottom_navigation.dart';
+import 'package:flutter/services.dart';
 
 class ScheduleScreen extends StatefulWidget {
   const ScheduleScreen({Key? key}) : super(key: key);
@@ -11,44 +12,75 @@ class ScheduleScreen extends StatefulWidget {
 
 class _ScheduleScreenState extends State<ScheduleScreen> {
   int selectedDay = 11;
-  final List<int> days = List.generate(31, (index) => index + 1);
-  final List<Map<String, dynamic>> schedule = [
-    {
-      'time': 'January, 11, 8am',
-      'label': 'Wake Up',
-      'color': Color(0xFFFFD6E0),
-      'icon': Icons.wb_twighlight,
-      'checked': false,
-    },
-    {
-      'time': 'January, 11, 8:30pm',
-      'label': 'Break-fast',
-      'color': Color(0xFFF7F7C6),
-      'icon': Icons.free_breakfast,
-      'checked': true,
-    },
-    {
-      'time': 'January, 11, 2:30pm',
-      'label': 'Lunch',
-      'color': Color(0xFFF7F7C6),
-      'icon': Icons.lunch_dining,
-      'checked': true,
-    },
-    {
-      'time': 'January, 11, 9:00pm',
-      'label': 'Diner',
-      'color': Color(0xFFF7F7C6),
-      'icon': Icons.restaurant,
-      'checked': true,
-    },
-    {
-      'time': 'January, 11, 9:00pm',
-      'label': 'Sleep Time',
-      'color': Color(0xFFF7F7C6),
-      'icon': Icons.nightlight_round,
-      'checked': false,
-    },
-  ];
+  int weekOffset = 0; // 0: days 1-14, 1: days 15-28, 2: days 29-31
+  static const int daysPerPage = 14;
+  final int totalDays = 31;
+  final Map<int, List<Map<String, dynamic>>> scheduleByDay = {
+    11: [
+      {
+        'time': '8:00am',
+        'label': 'Wake Up',
+        'color': Color(0xFFFFD6E0),
+        'icon': Icons.wb_twighlight,
+        'checked': false,
+      },
+      {
+        'time': '8:30am',
+        'label': 'Break-fast',
+        'color': Color(0xFFF7F7C6),
+        'icon': Icons.free_breakfast,
+        'checked': true,
+      },
+      {
+        'time': '2:30pm',
+        'label': 'Lunch',
+        'color': Color(0xFFF7F7C6),
+        'icon': Icons.lunch_dining,
+        'checked': true,
+      },
+      {
+        'time': '9:00pm',
+        'label': 'Diner',
+        'color': Color(0xFFF7F7C6),
+        'icon': Icons.restaurant,
+        'checked': true,
+      },
+      {
+        'time': '9:00pm',
+        'label': 'Sleep Time',
+        'color': Color(0xFFF7F7C6),
+        'icon': Icons.nightlight_round,
+        'checked': false,
+      },
+    ],
+    12: [
+      {
+        'time': '8:00am',
+        'label': 'Wake Up',
+        'color': Color(0xFFFFD6E0),
+        'icon': Icons.wb_twighlight,
+        'checked': false,
+      },
+      {
+        'time': '8:30am',
+        'label': 'Break-fast',
+        'color': Color(0xFFF7F7C6),
+        'icon': Icons.free_breakfast,
+        'checked': false,
+      },
+    ],
+    // Add more days as needed
+  };
+
+  @override
+  void initState() {
+    super.initState();
+    SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent,
+      statusBarIconBrightness: Brightness.light,
+      statusBarBrightness: Brightness.dark,
+    ));
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -87,26 +119,42 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Container(
-                        width: 36,
-                        height: 36,
-                        decoration: BoxDecoration(
-                          color: Colors.transparent,
-                          shape: BoxShape.circle,
-                          border: Border.all(color: Colors.white24, width: 2),
+                      GestureDetector(
+                        onTap: weekOffset > 0
+                            ? () => setState(() {
+                                  weekOffset--;
+                                  selectedDay = weekOffset * daysPerPage + 1;
+                                })
+                            : null,
+                        child: Container(
+                          width: 36,
+                          height: 36,
+                          decoration: BoxDecoration(
+                            color: Colors.transparent,
+                            shape: BoxShape.circle,
+                            border: Border.all(color: Colors.white24, width: 2),
+                          ),
+                          child: Icon(Icons.chevron_left, color: Colors.white24, size: 28),
                         ),
-                        child: Icon(Icons.chevron_left, color: Colors.white24, size: 28),
                       ),
                       const SizedBox(width: 16),
-                      Container(
-                        width: 36,
-                        height: 36,
-                        decoration: BoxDecoration(
-                          color: Colors.transparent,
-                          shape: BoxShape.circle,
-                          border: Border.all(color: Colors.white, width: 2),
+                      GestureDetector(
+                        onTap: (weekOffset + 1) * daysPerPage < totalDays
+                            ? () => setState(() {
+                                  weekOffset++;
+                                  selectedDay = weekOffset * daysPerPage + 1;
+                                })
+                            : null,
+                        child: Container(
+                          width: 36,
+                          height: 36,
+                          decoration: BoxDecoration(
+                            color: Colors.transparent,
+                            shape: BoxShape.circle,
+                            border: Border.all(color: Colors.white, width: 2),
+                          ),
+                          child: Icon(Icons.chevron_right, color: Colors.white, size: 28),
                         ),
-                        child: Icon(Icons.chevron_right, color: Colors.white, size: 28),
                       ),
                     ],
                   ),
@@ -114,7 +162,6 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Icon(Icons.arrow_back_ios, color: Colors.white54, size: 20),
                       Expanded(
                         child: Column(
                           children: [
@@ -143,35 +190,41 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                                 for (int i = 1; i <= 7; i++)
                                   Expanded(
                                     child: Center(
-                                      child: GestureDetector(
-                                        onTap: () => setState(() => selectedDay = i),
-                                        child: Container(
-                                          width: 32,
-                                          height: 32,
-                                          margin: const EdgeInsets.symmetric(horizontal: 2, vertical: 2),
-                                          decoration: BoxDecoration(
-                                            color: (selectedDay == i)
-                                                ? const Color(0xFFFFD6E0)
-                                                : Colors.transparent,
-                                            border: Border.all(
-                                              color: Colors.white,
-                                              width: 1.5,
-                                            ),
-                                            borderRadius: BorderRadius.circular(16),
-                                          ),
-                                          child: Center(
-                                            child: Text(
-                                              i.toString(),
-                                              style: TextStyle(
-                                                color: (selectedDay == i)
-                                                    ? const Color(0xFF2D2041)
-                                                    : Colors.white,
-                                                fontWeight: FontWeight.bold,
-                                                fontSize: 16,
+                                      child: Builder(
+                                        builder: (context) {
+                                          int day = weekOffset * daysPerPage + i;
+                                          if (day > totalDays) return const SizedBox();
+                                          return GestureDetector(
+                                            onTap: () => setState(() => selectedDay = day),
+                                            child: Container(
+                                              width: 32,
+                                              height: 32,
+                                              margin: const EdgeInsets.symmetric(horizontal: 2, vertical: 2),
+                                              decoration: BoxDecoration(
+                                                color: (selectedDay == day)
+                                                    ? const Color(0xFFFFD6E0)
+                                                    : Colors.transparent,
+                                                border: Border.all(
+                                                  color: Colors.white,
+                                                  width: 1.5,
+                                                ),
+                                                borderRadius: BorderRadius.circular(16),
+                                              ),
+                                              child: Center(
+                                                child: Text(
+                                                  day.toString(),
+                                                  style: TextStyle(
+                                                    color: (selectedDay == day)
+                                                        ? const Color(0xFF2D2041)
+                                                        : Colors.white,
+                                                    fontWeight: FontWeight.bold,
+                                                    fontSize: 16,
+                                                  ),
+                                                ),
                                               ),
                                             ),
-                                          ),
-                                        ),
+                                          );
+                                        },
                                       ),
                                     ),
                                   ),
@@ -183,35 +236,41 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                                 for (int i = 8; i <= 14; i++)
                                   Expanded(
                                     child: Center(
-                                      child: GestureDetector(
-                                        onTap: () => setState(() => selectedDay = i),
-                                        child: Container(
-                                          width: 32,
-                                          height: 32,
-                                          margin: const EdgeInsets.symmetric(horizontal: 2, vertical: 2),
-                                          decoration: BoxDecoration(
-                                            color: (selectedDay == i)
-                                                ? const Color(0xFFFFD6E0)
-                                                : Colors.transparent,
-                                            border: Border.all(
-                                              color: Colors.white,
-                                              width: 1.5,
-                                            ),
-                                            borderRadius: BorderRadius.circular(16),
-                                          ),
-                                          child: Center(
-                                            child: Text(
-                                              i.toString(),
-                                              style: TextStyle(
-                                                color: (selectedDay == i)
-                                                    ? const Color(0xFF2D2041)
-                                                    : Colors.white,
-                                                fontWeight: FontWeight.bold,
-                                                fontSize: 16,
+                                      child: Builder(
+                                        builder: (context) {
+                                          int day = weekOffset * daysPerPage + i;
+                                          if (day > totalDays) return const SizedBox();
+                                          return GestureDetector(
+                                            onTap: () => setState(() => selectedDay = day),
+                                            child: Container(
+                                              width: 32,
+                                              height: 32,
+                                              margin: const EdgeInsets.symmetric(horizontal: 2, vertical: 2),
+                                              decoration: BoxDecoration(
+                                                color: (selectedDay == day)
+                                                    ? const Color(0xFFFFD6E0)
+                                                    : Colors.transparent,
+                                                border: Border.all(
+                                                  color: Colors.white,
+                                                  width: 1.5,
+                                                ),
+                                                borderRadius: BorderRadius.circular(16),
+                                              ),
+                                              child: Center(
+                                                child: Text(
+                                                  day.toString(),
+                                                  style: TextStyle(
+                                                    color: (selectedDay == day)
+                                                        ? const Color(0xFF2D2041)
+                                                        : Colors.white,
+                                                    fontWeight: FontWeight.bold,
+                                                    fontSize: 16,
+                                                  ),
+                                                ),
                                               ),
                                             ),
-                                          ),
-                                        ),
+                                          );
+                                        },
                                       ),
                                     ),
                                   ),
@@ -220,7 +279,6 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                           ],
                         ),
                       ),
-                      Icon(Icons.arrow_forward_ios, color: Colors.white54, size: 20),
                     ],
                   ),
                 ],
@@ -250,78 +308,91 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                     ),
                     const SizedBox(height: 16),
                     Expanded(
-                      child: ListView.separated(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                        itemCount: schedule.length,
-                        separatorBuilder: (_, __) => const SizedBox(height: 16),
-                        itemBuilder: (context, index) {
-                          final item = schedule[index];
-                          return Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Column(
-                                children: [
-                                  Container(
-                                    width: 16,
-                                    height: 16,
-                                    decoration: BoxDecoration(
-                                      color: item['color'],
-                                      shape: BoxShape.circle,
-                                    ),
-                                    child: item['checked']
-                                        ? const Icon(Icons.check, size: 12, color: Colors.black54)
-                                        : null,
-                                  ),
-                                  if (index != schedule.length - 1)
-                                    Container(
-                                      width: 2,
-                                      height: 48,
-                                      color: const Color(0xFFDED6F3),
-                                    ),
-                                ],
+                      child: Builder(
+                        builder: (context) {
+                          final schedule = scheduleByDay[selectedDay] ?? [];
+                          if (schedule.isEmpty) {
+                            return const Center(
+                              child: Text(
+                                'No events for this day.',
+                                style: TextStyle(color: Color(0xFF2D2041), fontSize: 16),
                               ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                                  decoration: BoxDecoration(
-                                    color: item['color'],
-                                    borderRadius: BorderRadius.circular(18),
-                                  ),
-                                  child: Row(
+                            );
+                          }
+                          return ListView.separated(
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                            itemCount: schedule.length,
+                            separatorBuilder: (_, __) => const SizedBox(height: 16),
+                            itemBuilder: (context, index) {
+                              final item = schedule[index];
+                              return Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Column(
                                     children: [
-                                      Icon(item['icon'], color: Colors.black54, size: 24),
-                                      const SizedBox(width: 12),
-                                      Expanded(
-                                        child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
-                                          children: [
-                                            Text(
-                                              item['time'],
-                                              style: const TextStyle(
-                                                color: Colors.black54,
-                                                fontSize: 13,
-                                                fontFamily: 'Montserrat',
-                                              ),
-                                            ),
-                                            const SizedBox(height: 2),
-                                            Text(
-                                              item['label'],
-                                              style: const TextStyle(
-                                                color: Colors.black87,
-                                                fontSize: 18,
-                                                fontFamily: 'Montserrat',
-                                                fontWeight: FontWeight.w500,
-                                              ),
-                                            ),
-                                          ],
+                                      Container(
+                                        width: 16,
+                                        height: 16,
+                                        decoration: BoxDecoration(
+                                          color: item['color'],
+                                          shape: BoxShape.circle,
                                         ),
+                                        child: item['checked']
+                                            ? const Icon(Icons.check, size: 12, color: Colors.black54)
+                                            : null,
                                       ),
+                                      if (index != schedule.length - 1)
+                                        Container(
+                                          width: 2,
+                                          height: 48,
+                                          color: const Color(0xFFDED6F3),
+                                        ),
                                     ],
                                   ),
-                                ),
-                              ),
-                            ],
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                      decoration: BoxDecoration(
+                                        color: item['color'],
+                                        borderRadius: BorderRadius.circular(18),
+                                      ),
+                                      child: Row(
+                                        children: [
+                                          Icon(item['icon'], color: Colors.black54, size: 24),
+                                          const SizedBox(width: 12),
+                                          Expanded(
+                                            child: Column(
+                                              crossAxisAlignment: CrossAxisAlignment.start,
+                                              children: [
+                                                Text(
+                                                  item['time'],
+                                                  style: const TextStyle(
+                                                    color: Colors.black54,
+                                                    fontSize: 13,
+                                                    fontFamily: 'Montserrat',
+                                                  ),
+                                                ),
+                                                const SizedBox(height: 2),
+                                                Text(
+                                                  item['label'],
+                                                  style: const TextStyle(
+                                                    color: Colors.black87,
+                                                    fontSize: 18,
+                                                    fontFamily: 'Montserrat',
+                                                    fontWeight: FontWeight.w500,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              );
+                            },
                           );
                         },
                       ),

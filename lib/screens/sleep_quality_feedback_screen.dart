@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../widgets/custom_bottom_navigation.dart';
 import '../utils/app_theme.dart';
 import '../widgets/custom_profile_drawer.dart';
+import 'package:flutter/services.dart';
 
 class SleepQualityFeedbackScreen extends StatefulWidget {
   const SleepQualityFeedbackScreen({super.key});
@@ -35,6 +36,12 @@ class _SleepQualityFeedbackScreenState extends State<SleepQualityFeedbackScreen>
 
   @override
   Widget build(BuildContext context) {
+    SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent,
+      statusBarIconBrightness: Brightness.dark,
+      statusBarBrightness: Brightness.light,
+    ));
+
     return Scaffold(
       drawer: const CustomProfileDrawer(),
       backgroundColor: Colors.white,

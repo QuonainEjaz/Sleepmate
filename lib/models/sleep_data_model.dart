@@ -1,4 +1,4 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:intl/intl.dart';
 
 class SleepDataModel {
   final String id;
@@ -23,70 +23,64 @@ class SleepDataModel {
     required this.date,
     required this.bedTime,
     required this.wakeUpTime,
-    required this.sleepDuration,
-    required this.timeToFallAsleep,
-    required this.interruptionCount,
-    required this.interruptionTimes,
-    required this.sleepQuality,
-    required this.notes,
-    required this.environmentalData,
-    required this.dietaryData,
-    required this.createdAt,
-    required this.updatedAt,
-  });
+    this.sleepDuration = 0,
+    this.timeToFallAsleep = 0,
+    this.interruptionCount = 0,
+    this.interruptionTimes = const [],
+    this.sleepQuality = 0.0,
+    this.notes = '',
+    this.environmentalData = const {},
+    this.dietaryData = const {},
+    DateTime? createdAt,
+    DateTime? updatedAt,
+  }) : 
+    this.createdAt = createdAt ?? DateTime.now(),
+    this.updatedAt = updatedAt ?? DateTime.now();
 
-  factory SleepDataModel.fromFirestore(DocumentSnapshot doc) {
-    Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
-    
-    // Convert Timestamp list to DateTime list
+  factory SleepDataModel.fromJson(Map<String, dynamic> json) {
     List<DateTime> interruptionTimes = [];
-    if (data['interruptionTimes'] != null) {
-      for (var timestamp in (data['interruptionTimes'] as List)) {
-        interruptionTimes.add((timestamp as Timestamp).toDate());
+    if (json['interruptionTimes'] != null) {
+      for (var timeStr in (json['interruptionTimes'] as List)) {
+        interruptionTimes.add(DateTime.parse(timeStr));
       }
     }
     
     return SleepDataModel(
-      id: doc.id,
-      userId: data['userId'] ?? '',
-      date: (data['date'] as Timestamp).toDate(),
-      bedTime: (data['bedTime'] as Timestamp).toDate(),
-      wakeUpTime: (data['wakeUpTime'] as Timestamp).toDate(),
-      sleepDuration: data['sleepDuration'] ?? 0,
-      timeToFallAsleep: data['timeToFallAsleep'] ?? 0,
-      interruptionCount: data['interruptionCount'] ?? 0,
+      id: json['id'] ?? '',
+      userId: json['userId'] ?? '',
+      date: json['date'] != null ? DateTime.parse(json['date']) : DateTime.now(),
+      bedTime: json['bedTime'] != null ? DateTime.parse(json['bedTime']) : DateTime.now(),
+      wakeUpTime: json['wakeUpTime'] != null ? DateTime.parse(json['wakeUpTime']) : DateTime.now().add(const Duration(hours: 8)),
+      sleepDuration: json['sleepDuration'] ?? 0,
+      timeToFallAsleep: json['timeToFallAsleep'] ?? 0,
+      interruptionCount: json['interruptionCount'] ?? 0,
       interruptionTimes: interruptionTimes,
-      sleepQuality: (data['sleepQuality'] ?? 0).toDouble(),
-      notes: data['notes'] ?? '',
-      environmentalData: data['environmentalData'] ?? {},
-      dietaryData: data['dietaryData'] ?? {},
-      createdAt: (data['createdAt'] as Timestamp).toDate(),
-      updatedAt: (data['updatedAt'] as Timestamp).toDate(),
+      sleepQuality: (json['sleepQuality'] ?? 0).toDouble(),
+      notes: json['notes'] ?? '',
+      environmentalData: json['environmentalData'] ?? {},
+      dietaryData: json['dietaryData'] ?? {},
+      createdAt: json['createdAt'] != null ? DateTime.parse(json['createdAt']) : DateTime.now(),
+      updatedAt: json['updatedAt'] != null ? DateTime.parse(json['updatedAt']) : DateTime.now(),
     );
   }
 
-  Map<String, dynamic> toMap() {
-    // Convert DateTime list to Timestamp list
-    List<Timestamp> interruptionTimestamps = [];
-    for (var time in interruptionTimes) {
-      interruptionTimestamps.add(Timestamp.fromDate(time));
-    }
-    
+  Map<String, dynamic> toJson() {
     return {
+      'id': id,
       'userId': userId,
-      'date': Timestamp.fromDate(date),
-      'bedTime': Timestamp.fromDate(bedTime),
-      'wakeUpTime': Timestamp.fromDate(wakeUpTime),
+      'date': date.toIso8601String(),
+      'bedTime': bedTime.toIso8601String(),
+      'wakeUpTime': wakeUpTime.toIso8601String(),
       'sleepDuration': sleepDuration,
       'timeToFallAsleep': timeToFallAsleep,
       'interruptionCount': interruptionCount,
-      'interruptionTimes': interruptionTimestamps,
+      'interruptionTimes': interruptionTimes.map((time) => time.toIso8601String()).toList(),
       'sleepQuality': sleepQuality,
       'notes': notes,
       'environmentalData': environmentalData,
       'dietaryData': dietaryData,
-      'createdAt': Timestamp.fromDate(createdAt),
-      'updatedAt': Timestamp.fromDate(updatedAt),
+      'createdAt': createdAt.toIso8601String(),
+      'updatedAt': updatedAt.toIso8601String(),
     };
   }
 

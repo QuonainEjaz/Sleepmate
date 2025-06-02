@@ -117,92 +117,131 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFF2D2041),
       body: SafeArea(
-        child: Column(
-          children: [
-            const SizedBox(height: 40),
-            // Profile Image and Name
-            Column(
-              children: [
-                Container(
-                  width: 80,
-                  height: 80,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    border: Border.all(
-                      color: Colors.white,
-                      width: 2,
+        child: _isLoading
+          ? const Center(
+              child: CircularProgressIndicator(color: Colors.white),
+            )
+          : _errorMessage != null
+            ? Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      _errorMessage!,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                      ),
+                      textAlign: TextAlign.center,
                     ),
-                  ),
-                  child: ClipOval(
-                    child: Image.asset(
-                      'assets/images/profile.png',
-                      fit: BoxFit.cover,
+                    const SizedBox(height: 16),
+                    ElevatedButton(
+                      onPressed: _loadUserData,
+                      style: ElevatedButton.styleFrom(
+                        foregroundColor: const Color(0xFF2D2041),
+                        backgroundColor: Colors.white,
+                      ),
+                      child: const Text('Try Again'),
                     ),
-                  ),
+                  ],
                 ),
-                const SizedBox(height: 12),
-                const Text(
-                  'Youssef\nLabidi',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontFamily: 'Poppins',
-                    fontSize: 16,
-                    fontWeight: FontWeight.w500,
-                    color: Colors.white,
-                    height: 1.2,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 40),
-            // Menu Items
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24),
-              child: Column(
+              )
+            : Column(
                 children: [
-                  _buildMenuItem(
-                    title: 'Settings',
-                    icon: Icons.settings_outlined,
-                    onTap: () {
-                      Navigator.pushNamed(context, AppConstants.settingsRoute);
-                    },
+                  const SizedBox(height: 40),
+                  // Profile Image and Name
+                  Column(
+                    children: [
+                      Container(
+                        width: 80,
+                        height: 80,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: Colors.white,
+                            width: 2,
+                          ),
+                        ),
+                        child: ClipOval(
+                          child: _user?.profilePicture?.isNotEmpty == true
+                            ? Image.network(
+                                _user!.profilePicture!,
+                                fit: BoxFit.cover,
+                                errorBuilder: (context, error, stackTrace) => const Icon(
+                                  Icons.person,
+                                  size: 50,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : Image.asset(
+                                'assets/images/profile.png',
+                                fit: BoxFit.cover,
+                              ),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        _user?.name ?? 'User',
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          fontFamily: 'Poppins',
+                          fontSize: 16,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.white,
+                          height: 1.2,
+                        ),
+                      ),
+                    ],
                   ),
-                  _buildMenuItem(
-                    title: 'Schedule',
-                    icon: Icons.calendar_today_outlined,
-                    onTap: () {
-                      // Navigate to schedule
-                    },
+                  const SizedBox(height: 40),
+                  // Menu Items
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 24),
+                    child: Column(
+                      children: [
+                        _buildMenuItem(
+                          title: 'Settings',
+                          icon: Icons.settings_outlined,
+                          onTap: () {
+                            Navigator.pushNamed(context, AppConstants.settingsRoute);
+                          },
+                        ),
+                        _buildMenuItem(
+                          title: 'Schedule',
+                          icon: Icons.calendar_today_outlined,
+                          onTap: () {
+                            // Navigate to schedule
+                          },
+                        ),
+                        _buildMenuItem(
+                          title: 'Report',
+                          icon: Icons.description_outlined,
+                          onTap: () {
+                            // Navigate to report
+                          },
+                        ),
+                        _buildMenuItem(
+                          title: 'Notification',
+                          icon: Icons.notifications_outlined,
+                          onTap: () {
+                            // Navigate to notifications
+                          },
+                        ),
+                      ],
+                    ),
                   ),
-                  _buildMenuItem(
-                    title: 'Report',
-                    icon: Icons.description_outlined,
-                    onTap: () {
-                      // Navigate to report
-                    },
-                  ),
-                  _buildMenuItem(
-                    title: 'Notification',
-                    icon: Icons.notifications_outlined,
-                    onTap: () {
-                      // Navigate to notifications
-                    },
+                  const Spacer(),
+                  // Logout Button
+                  Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: _buildMenuItem(
+                      title: 'Log out',
+                      icon: Icons.logout,
+                      onTap: _logout,
+                    ),
                   ),
                 ],
               ),
-            ),
-            const Spacer(),
-            // Logout Button
-            Padding(
-              padding: const EdgeInsets.all(24),
-              child: _buildMenuItem(
-                title: 'Log out',
-                icon: Icons.logout,
-                onTap: _logout,
-              ),
-            ),
-          ],
-        ),
       ),
       bottomNavigationBar: const CustomBottomNavigation(
         currentIndex: 2,
@@ -220,10 +259,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
         CircleAvatar(
           radius: 60,
           backgroundColor: AppConstants.primaryColor.withOpacity(0.2),
-          backgroundImage: user.profileImageUrl?.isNotEmpty == true
-              ? NetworkImage(user.profileImageUrl!)
+          backgroundImage: _user?.profileImageUrl?.isNotEmpty == true
+              ? NetworkImage(_user!.profileImageUrl!)
               : null,
-          child: user.profileImageUrl?.isNotEmpty != true
+          child: _user?.profileImageUrl?.isNotEmpty != true
               ? Icon(
                   Icons.person,
                   size: 80,
@@ -233,7 +272,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ),
         const SizedBox(height: 16),
         Text(
-          user.name,
+          _user?.name ?? 'User',
           style: const TextStyle(
             fontSize: 24,
             fontWeight: FontWeight.bold,
@@ -241,7 +280,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ),
         const SizedBox(height: 4),
         Text(
-          user.email ?? '',
+          _user?.email ?? '',
           style: TextStyle(
             fontSize: 16,
             color: Colors.grey.shade600,

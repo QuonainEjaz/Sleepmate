@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../services/auth_service.dart';
 import '../utils/app_constants.dart';
 import '../utils/app_theme.dart';
 import 'otp_verification_screen.dart';
@@ -13,6 +15,7 @@ class ForgotPasswordScreen extends StatefulWidget {
 
 class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   final _emailController = TextEditingController();
+  bool _isLoading = false;
 
   @override
   void dispose() {
@@ -20,17 +23,115 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     super.dispose();
   }
 
-  void _sendCode() {
+  Future<void> _sendCode() async {
     final email = _emailController.text.trim();
-    if (email.isNotEmpty) {
-      // TODO: Add email validation and API call here
-      Navigator.push(
+    
+    // Validate email format
+    if (!_validateEmail(email)) {
+      return;
+    }
+
+    try {
+      setState(() => _isLoading = true);
+      
+      // Show loading indicator
+      if (!mounted) return;
+      final scaffoldMessenger = ScaffoldMessenger.of(context);
+      
+      // Call the API to send OTP
+      final authService = Provider.of<AuthService>(context, listen: false);
+      await authService.forgotPassword(email);
+
+      if (!mounted) return;
+      
+      // Show success message
+      scaffoldMessenger.showSnackBar(
+        SnackBar(
+          content: const Text('OTP has been sent to your email.'),
+          backgroundColor: Colors.green,
+          duration: const Duration(seconds: 3),
+          action: SnackBarAction(
+            label: 'OK',
+            textColor: Colors.white,
+            onPressed: () {
+              scaffoldMessenger.hideCurrentSnackBar();
+            },
+          ),
+        ),
+      );
+
+      // Navigate to OTP verification screen after a short delay
+      await Future.delayed(const Duration(milliseconds: 500));
+      
+      if (!mounted) return;
+      Navigator.pushReplacement(
         context,
         MaterialPageRoute(
           builder: (context) => OtpVerificationScreen(email: email),
         ),
       );
+      
+    } catch (e) {
+      if (!mounted) return;
+      
+      // Show error message
+      String errorMessage = 'Failed to send OTP. Please try again.';
+      
+      if (e.toString().contains('No account found')) {
+        errorMessage = 'No account found with this email address.';
+      } else if (e.toString().contains('network')) {
+        errorMessage = 'Network error. Please check your internet connection.';
+      } else if (e.toString().contains('timeout')) {
+        errorMessage = 'Request timed out. Please try again.';
+      }
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(errorMessage),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 4),
+          action: SnackBarAction(
+            label: 'OK',
+            textColor: Colors.white,
+            onPressed: () {
+              ScaffoldMessenger.of(context).hideCurrentSnackBar();
+            },
+          ),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
+  }
+
+  bool _validateEmail(String email) {
+    if (email.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please enter your email address'),
+          backgroundColor: Colors.red,
+          duration: Duration(seconds: 3),
+        ),
+      );
+      return false;
+    }
+
+    // Email validation
+    if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(email)) {
+      if (!mounted) return false;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please enter a valid email address'),
+          backgroundColor: Colors.red,
+          duration: Duration(seconds: 3),
+        ),
+      );
+      return false;
+    }
+
+    return true;
   }
 
   @override
@@ -99,6 +200,9 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                           child: TextField(
                             controller: _emailController,
                             style: AppTheme.bodyLarge,
+                            keyboardType: TextInputType.emailAddress,
+                            autocorrect: false,
+                            enableSuggestions: false,
                             decoration: InputDecoration(
                               hintText: 'Email',
                               hintStyle: AppTheme.modifyStyle(
@@ -113,6 +217,10 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                                 horizontal: 20,
                                 vertical: 16,
                               ),
+                              prefixIcon: Icon(
+                                Icons.email_outlined,
+                                color: Colors.white.withOpacity(0.7),
+                              ),
                             ),
                           ),
                         ),
@@ -123,54 +231,64 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                           width: double.infinity,
                           height: 56,
                           child: ElevatedButton(
-                            onPressed: _sendCode,
+                            onPressed: _isLoading ? null : _sendCode,
                             style: ElevatedButton.styleFrom(
                               backgroundColor: Colors.white,
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(25),
                               ),
+                              disabledBackgroundColor: Colors.white.withOpacity(0.7),
                             ),
-                            child: Text(
-                              'Send Code',
-                              style: AppTheme.modifyStyle(
-                                AppTheme.buttonLarge,
-                                color: const Color(0xFF2A2438),
-                              ),
-                            ),
+                            child: _isLoading
+                                ? const SizedBox(
+                                    width: 24,
+                                    height: 24,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      valueColor: AlwaysStoppedAnimation<Color>(
+                                        Color(0xFF2A2438),
+                                      ),
+                                    ),
+                                  )
+                                : Text(
+                                    'Send Code',
+                                    style: AppTheme.modifyStyle(
+                                      AppTheme.buttonLarge,
+                                      color: const Color(0xFF2A2438),
+                                    ),
+                                  ),
                           ),
                         ),
                         
                         const SizedBox(height: 300),
                         
                         // Remember Password Link
-                      Center(
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(
-                              'Remember Password? ',
-                              style: AppTheme.modifyStyle(
-                                AppTheme.bodyMedium,
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            GestureDetector(
-                              onTap: () {
-                                Navigator.of(context).pushReplacementNamed(AppConstants.loginRoute);
-                              },
-                              child: Text(
-                                'Login',
-                                style: GoogleFonts.urbanist(
-                                  fontSize: 14,
+                        Center(
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text(
+                                'Remember Password? ',
+                                style: AppTheme.modifyStyle(
+                                  AppTheme.bodyMedium,
+                                  color: Colors.white,
                                   fontWeight: FontWeight.bold,
-                                  color: AppTheme.gold,
                                 ),
                               ),
-                            ),
-                          ],
+                              GestureDetector(
+                                onTap: () => Navigator.pop(context),
+                                child: Text(
+                                  'Login',
+                                  style: AppTheme.modifyStyle(
+                                    AppTheme.bodyMedium,
+                                    color: Colors.blue[300],
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
-                      ),
                       ],
                     ),
                   ),

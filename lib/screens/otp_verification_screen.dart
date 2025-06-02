@@ -1,5 +1,8 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
+import '../services/auth_service.dart';
 import '../utils/app_constants.dart';
 import 'create_new_password_screen.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -27,20 +30,157 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
     (index) => FocusNode(),
   );
 
+  bool _isLoading = false;
+  bool _canResend = true;
+  int _resendCooldown = 60; // 60 seconds cooldown
+  Timer? _resendTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    // Start the cooldown timer when the screen loads
+    _startResendCooldown();
+  }
+
   @override
   void dispose() {
+    _resendTimer?.cancel();
     for (var controller in _controllers) {
       controller.dispose();
     }
     for (var node in _focusNodes) {
       node.dispose();
     }
+    _resendTimer?.cancel();
     super.dispose();
   }
+
+  void _startResendCooldown() {
+    setState(() {
+      _canResend = false;
+      _resendCooldown = 60;
+    });
+
+    _resendTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (_resendCooldown > 0) {
+        setState(() {
+          _resendCooldown--;
+        });
+      } else {
+        setState(() {
+          _canResend = true;
+        });
+        timer.cancel();
+      }
+    });
+  }
+
+  Future<void> _resendOTP() async {
+    if (!_canResend) return;
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final authService = Provider.of<AuthService>(context, listen: false);
+      await authService.forgotPassword(widget.email);
+      
+      if (!mounted) return;
+      
+      // Clear the OTP fields
+      for (var controller in _controllers) {
+        controller.clear();
+      }
+      
+      // Refocus on the first field
+      if (_focusNodes.isNotEmpty) {
+        FocusScope.of(context).requestFocus(_focusNodes[0]);
+      }
+      
+      // Show success message
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('A new OTP has been sent to your email'),
+          backgroundColor: Colors.green,
+        ),
+      );
+      
+      // Start the cooldown
+      _startResendCooldown();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e.toString().replaceAll('Exception: ', '')),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+
 
   void _onOtpDigitChanged(int index, String value) {
     if (value.length == 1 && index < 3) {
       _focusNodes[index + 1].requestFocus();
+    }
+  }
+
+  Future<void> _verifyOTP() async {
+    // Get the complete OTP
+    final otp = _controllers.map((c) => c.text).join();
+    
+    if (otp.length != 4) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter a valid OTP')),
+      );
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final authService = Provider.of<AuthService>(context, listen: false);
+      
+      // Call the verify OTP API
+      final resetToken = await authService.verifyOTP(widget.email, otp);
+
+      if (!mounted) return;
+      
+      // Navigate to create new password screen with reset token
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) => CreateNewPasswordScreen(
+            email: widget.email,
+            resetToken: resetToken,
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e.toString().replaceAll('Exception: ', '')),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -152,36 +292,30 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
                           width: double.infinity,
                           height: 56,
                           child: ElevatedButton(
-                            onPressed: () {
-                              // Get the complete OTP
-                              final otp = _controllers.map((c) => c.text).join();
-                              if (otp.length == 4) {
-                                // TODO: Verify OTP with backend
-                                // Navigate to create new password screen
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) => CreateNewPasswordScreen(
-                                      email: widget.email,
-                                    ),
-                                  ),
-                                );
-                              }
-                            },
+                            onPressed: _isLoading ? null : _verifyOTP,
                             style: ElevatedButton.styleFrom(
                               backgroundColor: Colors.white,
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(25),
                               ),
                             ),
-                            child: Text(
-                              'Verify',
-                              style: GoogleFonts.montserratAlternates(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
-                                color: Color(0xFF2A2438),
-                              ),
-                            ),
+                            child: _isLoading
+                                ? const SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF2A2438)),
+                                    ),
+                                  )
+                                : Text(
+                                    'Verify',
+                                    style: GoogleFonts.montserratAlternates(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w600,
+                                      color: const Color(0xFF2A2438),
+                                    ),
+                                  ),
                           ),
                         ),
                         
@@ -193,24 +327,24 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
                               Text(
-                                'Didn\'t received code? ',
+                                'Didn\'t receive code? ',
                                 style: AppTheme.modifyStyle(
-                                AppTheme.bodyMedium,
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                              ),
+                                  AppTheme.bodyMedium,
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                ),
                               ),
                               GestureDetector(
-                                onTap: () {
-                                  // TODO: Implement resend code functionality
-                                },
+                                onTap: _isLoading ? null : _resendOTP,
                                 child: Text(
                                   'Resend',
                                   style: GoogleFonts.urbanist(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.bold,
-                                  color: AppTheme.gold,
-                                ),
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.bold,
+                                    color: _isLoading 
+                                        ? Colors.grey 
+                                        : AppTheme.gold,
+                                  ),
                                 ),
                               ),
                             ],

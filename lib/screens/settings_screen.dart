@@ -1,12 +1,19 @@
 import 'package:flutter/material.dart';
 import '../widgets/custom_bottom_navigation.dart';
 import '../widgets/custom_profile_drawer.dart';
+import 'package:flutter/services.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
+    SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent,
+      statusBarIconBrightness: Brightness.light,
+      statusBarBrightness: Brightness.dark,
+    ));
+
     return Scaffold(
       backgroundColor: const Color(0xFF262135),
       endDrawer: const CustomProfileDrawer(),

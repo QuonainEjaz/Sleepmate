@@ -1,4 +1,4 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:intl/intl.dart';
 
 class PredictionModel {
   final String id;
@@ -11,72 +11,101 @@ class PredictionModel {
   final List<String> recommendations;
   final Map<String, dynamic> inputData; // The data used to generate the prediction
   final DateTime createdAt;
+  
+  // Sleep quality and duration for simple predictions
+  final int? sleepQuality;
+  final int? sleepDuration;
 
   PredictionModel({
     required this.id,
     required this.userId,
     required this.date,
-    required this.predictionScore,
-    required this.predictedInterruptionCount,
-    required this.predictedInterruptionWindows,
-    required this.contributingFactors,
-    required this.recommendations,
-    required this.inputData,
-    required this.createdAt,
-  });
+    this.predictionScore = 0.0,
+    this.predictedInterruptionCount = 0,
+    this.predictedInterruptionWindows = const [],
+    this.contributingFactors = const {},
+    this.recommendations = const [],
+    this.inputData = const {},
+    DateTime? createdAt,
+    this.sleepQuality,
+    this.sleepDuration,
+  }) : this.createdAt = createdAt ?? DateTime.now();
+  
+  // Simplified constructor for basic predictions
+  factory PredictionModel.simple({
+    required String userId,
+    required DateTime date,
+    required int sleepQuality,
+    required int sleepDuration,
+    List<String> recommendations = const [],
+  }) {
+    return PredictionModel(
+      id: '',
+      userId: userId,
+      date: date,
+      sleepQuality: sleepQuality,
+      sleepDuration: sleepDuration,
+      recommendations: recommendations,
+    );
+  }
 
-  factory PredictionModel.fromFirestore(DocumentSnapshot doc) {
-    Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
-    
-    // Convert raw data to predictedInterruptionWindows
+  factory PredictionModel.fromJson(Map<String, dynamic> json) {
     List<Map<String, dynamic>> windows = [];
-    if (data['predictedInterruptionWindows'] != null) {
-      for (var window in (data['predictedInterruptionWindows'] as List)) {
+    if (json['predictedInterruptionWindows'] != null) {
+      for (var window in (json['predictedInterruptionWindows'] as List)) {
         final windowMap = window as Map<String, dynamic>;
         windows.add({
-          'startTime': (windowMap['startTime'] as Timestamp).toDate(),
-          'endTime': (windowMap['endTime'] as Timestamp).toDate(),
+          'startTime': DateTime.parse(windowMap['startTime']),
+          'endTime': DateTime.parse(windowMap['endTime']),
           'probability': windowMap['probability'],
         });
       }
     }
     
     return PredictionModel(
-      id: doc.id,
-      userId: data['userId'] ?? '',
-      date: (data['date'] as Timestamp).toDate(),
-      predictionScore: (data['predictionScore'] ?? 0).toDouble(),
-      predictedInterruptionCount: data['predictedInterruptionCount'] ?? 0,
+      id: json['id'] ?? '',
+      userId: json['userId'] ?? '',
+      date: json['date'] != null ? DateTime.parse(json['date']) : DateTime.now(),
+      predictionScore: (json['predictionScore'] ?? 0).toDouble(),
+      predictedInterruptionCount: json['predictedInterruptionCount'] ?? 0,
       predictedInterruptionWindows: windows,
-      contributingFactors: Map<String, double>.from(data['contributingFactors'] ?? {}),
-      recommendations: List<String>.from(data['recommendations'] ?? []),
-      inputData: data['inputData'] ?? {},
-      createdAt: (data['createdAt'] as Timestamp).toDate(),
+      contributingFactors: Map<String, double>.from(json['contributingFactors'] ?? {}),
+      recommendations: List<String>.from(json['recommendations'] ?? []),
+      inputData: json['inputData'] ?? {},
+      createdAt: json['createdAt'] != null ? DateTime.parse(json['createdAt']) : DateTime.now(),
+      sleepQuality: json['sleepQuality'],
+      sleepDuration: json['sleepDuration'],
     );
   }
 
-  Map<String, dynamic> toMap() {
-    // Convert predictedInterruptionWindows to storable format
+  Map<String, dynamic> toJson() {
     List<Map<String, dynamic>> windows = [];
     for (var window in predictedInterruptionWindows) {
       windows.add({
-        'startTime': Timestamp.fromDate(window['startTime']),
-        'endTime': Timestamp.fromDate(window['endTime']),
+        'startTime': (window['startTime'] as DateTime).toIso8601String(),
+        'endTime': (window['endTime'] as DateTime).toIso8601String(),
         'probability': window['probability'],
       });
     }
     
-    return {
+    final result = <String, dynamic>{
+      'id': id,
       'userId': userId,
-      'date': Timestamp.fromDate(date),
+      'date': date.toIso8601String(),
       'predictionScore': predictionScore,
       'predictedInterruptionCount': predictedInterruptionCount,
       'predictedInterruptionWindows': windows,
       'contributingFactors': contributingFactors,
       'recommendations': recommendations,
       'inputData': inputData,
-      'createdAt': Timestamp.fromDate(createdAt),
+      'createdAt': createdAt.toIso8601String(),
     };
+    
+    // Add optional fields if they're not null
+    if (sleepQuality != null) result['sleepQuality'] = sleepQuality!;
+    if (sleepDuration != null) result['sleepDuration'] = sleepDuration!;
+    
+    return result;
   }
 
   PredictionModel copyWith({
@@ -90,6 +119,8 @@ class PredictionModel {
     List<String>? recommendations,
     Map<String, dynamic>? inputData,
     DateTime? createdAt,
+    int? sleepQuality,
+    int? sleepDuration,
   }) {
     return PredictionModel(
       id: id ?? this.id,
@@ -102,6 +133,8 @@ class PredictionModel {
       recommendations: recommendations ?? this.recommendations,
       inputData: inputData ?? this.inputData,
       createdAt: createdAt ?? this.createdAt,
+      sleepQuality: sleepQuality ?? this.sleepQuality,
+      sleepDuration: sleepDuration ?? this.sleepDuration,
     );
   }
 } 

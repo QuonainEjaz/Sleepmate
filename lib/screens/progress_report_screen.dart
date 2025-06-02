@@ -1,12 +1,19 @@
 import 'package:flutter/material.dart';
 import '../widgets/custom_bottom_navigation.dart';
 import '../widgets/custom_profile_drawer.dart';
+import 'package:flutter/services.dart';
 
 class ProgressReportScreen extends StatelessWidget {
   const ProgressReportScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
+    SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent,
+      statusBarIconBrightness: Brightness.dark,
+      statusBarBrightness: Brightness.light,
+    ));
+
     return Scaffold(
       backgroundColor: const Color(0xFFF6F8F9),
       endDrawer: const CustomProfileDrawer(),

@@ -7,9 +7,12 @@ import '../widgets/custom_button.dart';
 import '../widgets/custom_dropdown.dart';
 import '../widgets/custom_input_field.dart';
 import '../widgets/custom_date_time_field.dart';
+import '../services/service_locator.dart';
 
 class AddSleepDataScreen extends StatefulWidget {
-  const AddSleepDataScreen({Key? key}) : super(key: key);
+  final bool onSaveOnly;
+  
+  const AddSleepDataScreen({Key? key, this.onSaveOnly = false}) : super(key: key);
 
   @override
   State<AddSleepDataScreen> createState() => _AddSleepDataScreenState();
@@ -121,115 +124,96 @@ class _AddSleepDataScreenState extends State<AddSleepDataScreen> {
   }
 
   double _calculateTotalSleepPercentages() {
-    final deepSleep = int.tryParse(_deepSleepController.text) ?? 0;
-    final remSleep = int.tryParse(_remSleepController.text) ?? 0;
-    final lightSleep = int.tryParse(_lightSleepController.text) ?? 0;
+    final deepSleep = double.tryParse(_deepSleepController.text) ?? 0.0;
+    final remSleep = double.tryParse(_remSleepController.text) ?? 0.0;
+    final lightSleep = double.tryParse(_lightSleepController.text) ?? 0.0;
     
     return deepSleep + remSleep + lightSleep;
   }
 
   Future<void> _saveSleepData() async {
-    if (!_formKey.currentState!.validate()) {
-      return;
-    }
+    if (!_formKey.currentState!.validate()) return;
     
     setState(() {
       _isLoading = true;
       _errorMessage = null;
     });
-    
+
     try {
-      // Convert TimeOfDay to DateTime
-      final now = DateTime.now();
-      final bedDateTime = DateTime(
-        _selectedDate.year,
-        _selectedDate.month,
-        _selectedDate.day,
-        _bedTime.hour,
-        _bedTime.minute,
-      );
-      
-      // If wake time is before bed time, assume it's the next day
-      DateTime wakeDateTime = DateTime(
-        _selectedDate.year,
-        _selectedDate.month,
-        _selectedDate.day,
-        _wakeTime.hour,
-        _wakeTime.minute,
-      );
-      
-      if (wakeDateTime.isBefore(bedDateTime)) {
-        wakeDateTime = wakeDateTime.add(const Duration(days: 1));
-      }
-      
-      // Calculate total sleep duration
-      final totalSleepDuration = wakeDateTime.difference(bedDateTime);
-      
-      // Calculate sleep stage percentages
-      final deepSleepMinutes = int.tryParse(_deepSleepController.text) ?? 0;
-      final remSleepMinutes = int.tryParse(_remSleepController.text) ?? 0;
-      final lightSleepMinutes = int.tryParse(_lightSleepController.text) ?? 0;
-      
-      final totalSleepMinutes = totalSleepDuration.inMinutes;
-      final totalTrackedMinutes = deepSleepMinutes + remSleepMinutes + lightSleepMinutes;
-      
-      double deepSleepPercentage;
-      double remSleepPercentage;
-      double lightSleepPercentage;
-      
-      if (totalTrackedMinutes > 0) {
-        deepSleepPercentage = (deepSleepMinutes / totalTrackedMinutes) * 100;
-        remSleepPercentage = (remSleepMinutes / totalTrackedMinutes) * 100;
-        lightSleepPercentage = (lightSleepMinutes / totalTrackedMinutes) * 100;
+      final sleepData = _buildSleepDataFromForm();
+
+      if (widget.onSaveOnly) {
+        // Return data without saving if in onSaveOnly mode
+        if (mounted) {
+          Navigator.pop(context, sleepData);
+        }
       } else {
-        deepSleepPercentage = 0;
-        remSleepPercentage = 0;
-        lightSleepPercentage = 0;
-      }
-      
-      final sleepData = SleepDataModel(
-        id: DateTime.now().millisecondsSinceEpoch.toString(),
-        date: _selectedDate,
-        bedTime: bedDateTime,
-        wakeTime: wakeDateTime,
-        totalSleepDuration: totalSleepDuration,
-        sleepLatency: int.tryParse(_sleepLatencyController.text) ?? 0,
-        wakeEpisodes: int.tryParse(_wakeEpisodesController.text) ?? 0,
-        deepSleepPercentage: deepSleepPercentage,
-        deepSleepMinutes: deepSleepMinutes,
-        remSleepPercentage: remSleepPercentage,
-        remSleepMinutes: remSleepMinutes,
-        lightSleepPercentage: lightSleepPercentage,
-        lightSleepMinutes: lightSleepMinutes,
-        sleepQuality: _sleepQuality,
-        caffeineIntake: int.tryParse(_caffeineController.text) ?? 0,
-        exerciseDuration: int.tryParse(_exerciseController.text) ?? 0,
-        screenTimeBeforeBed: int.tryParse(_screenTimeController.text) ?? 0,
-        stressLevel: _stressLevel,
-        notes: _notesController.text,
-      );
-      
-      await _sleepDataService.addSleepData(sleepData);
-      
-      // Navigate back if successful
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Sleep data saved successfully!'),
-            backgroundColor: Colors.green,
-          ),
-        );
-        Navigator.of(context).pop(true); // Return true to indicate success
+        // Save data using service locator
+        await serviceLocator.sleepData.addSleepData(SleepDataModel.fromJson(sleepData));
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Sleep data saved successfully!')),
+          );
+          Navigator.pop(context);
+        }
       }
     } catch (e) {
       setState(() {
-        _errorMessage = 'Failed to save sleep data: ${e.toString()}';
+        _errorMessage = 'Error saving sleep data: ${e.toString()}';
       });
     } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
+  }
+  
+  // Helper method to build sleep data object from form
+  Map<String, dynamic> _buildSleepDataFromForm() {
+    // Convert TimeOfDay to string format
+    String _formatTimeOfDay(TimeOfDay time) {
+      final hour = time.hour.toString().padLeft(2, '0');
+      final minute = time.minute.toString().padLeft(2, '0');
+      return '$hour:$minute';
+    }
+    
+    // Calculate sleep duration in hours
+    double _calculateSleepDuration(TimeOfDay bedTime, TimeOfDay wakeTime) {
+      // Convert to minutes since midnight
+      int bedMinutes = bedTime.hour * 60 + bedTime.minute;
+      int wakeMinutes = wakeTime.hour * 60 + wakeTime.minute;
+      
+      // If wake time is earlier than bed time, add 24 hours (in minutes)
+      if (wakeMinutes < bedMinutes) {
+        wakeMinutes += 24 * 60;
+      }
+      
+      // Return duration in hours
+      return (wakeMinutes - bedMinutes) / 60.0;
+    }
+    
+    // Build the data object
+    return {
+      'date': _selectedDate.toIso8601String(),
+      'bedTime': _formatTimeOfDay(_bedTime),
+      'wakeTime': _formatTimeOfDay(_wakeTime),
+      'sleepDuration': _calculateSleepDuration(_bedTime, _wakeTime),
+      'lightSleepDuration': double.tryParse(_lightSleepController.text) ?? 0,
+      'deepSleepDuration': double.tryParse(_deepSleepController.text) ?? 0,
+      'remSleepDuration': double.tryParse(_remSleepController.text) ?? 0,
+      'sleepQuality': _sleepQuality,
+      'sleepLatency': double.tryParse(_sleepLatencyController.text) ?? 0,
+      'interruptionCount': int.tryParse(_wakeEpisodesController.text) ?? 0,
+      'stressLevel': _stressLevel,
+      'activities': {
+        'caffeineIntake': int.tryParse(_caffeineController.text) ?? 0,
+        'exerciseMinutes': int.tryParse(_exerciseController.text) ?? 0,
+        'screenTimeMinutes': int.tryParse(_screenTimeController.text) ?? 0,
+      },
+      'notes': _notesController.text,
+    };
   }
 
   @override

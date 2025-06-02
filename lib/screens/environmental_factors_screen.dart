@@ -5,9 +5,17 @@ import '../utils/app_constants.dart';
 import '../widgets/custom_bottom_navigation.dart';
 import '../widgets/custom_profile_drawer.dart';
 
-
 class EnvironmentalFactorsScreen extends StatefulWidget {
-  const EnvironmentalFactorsScreen({super.key});
+  final bool onSaveOnly;
+  final Map<String, dynamic>? sleepData;
+  final Map<String, dynamic>? dietaryData;
+
+  const EnvironmentalFactorsScreen({
+    super.key, 
+    this.onSaveOnly = false,
+    this.sleepData,
+    this.dietaryData,
+  });
 
   @override
   State<EnvironmentalFactorsScreen> createState() => _EnvironmentalFactorsScreenState();
@@ -17,6 +25,41 @@ class _EnvironmentalFactorsScreenState extends State<EnvironmentalFactorsScreen>
   String _lightIntensity = '450 lux';
   String _temperature = '22 °C';
   String _soundExposure = 'Quiet (< 30 dB)';
+
+  // Helper method to build environmental data object
+  Map<String, dynamic> _buildEnvironmentalData() {
+    // Parse light intensity (removing 'lux' and converting to number)
+    final lightMatch = RegExp(r'(\d+)').firstMatch(_lightIntensity);
+    final lightValue = lightMatch != null ? int.parse(lightMatch.group(1)!) : 450;
+
+    // Parse temperature (removing '°C' and converting to number)
+    final tempMatch = RegExp(r'(\d+)').firstMatch(_temperature);
+    final tempValue = tempMatch != null ? int.parse(tempMatch.group(1)!) : 22;
+
+    // Map sound exposure to numerical value
+    int soundValue;
+    switch (_soundExposure) {
+      case 'Quiet (< 30 dB)':
+        soundValue = 25;
+        break;
+      case 'Moderate (30-60 dB)':
+        soundValue = 45;
+        break;
+      case 'Loud (> 60 dB)':
+        soundValue = 70;
+        break;
+      default:
+        soundValue = 45;
+    }
+
+    return {
+      'lightIntensity': lightValue,
+      'temperature': tempValue,
+      'noiseLevel': soundValue,
+      'humidity': 50, // Default value
+      'airQuality': 'Good' // Default value
+    };
+  }
 
   Widget _buildInputField(String label, String value, {IconData? icon}) {
     return Row(
@@ -62,6 +105,27 @@ class _EnvironmentalFactorsScreenState extends State<EnvironmentalFactorsScreen>
         ),
       ],
     );
+  }
+
+  // Save environmental data and navigate to PredictionScreen
+  void _saveAndContinue() {
+    final envData = _buildEnvironmentalData();
+    
+    if (widget.onSaveOnly) {
+      // Return data without saving if in onSaveOnly mode
+      Navigator.pop(context, envData);
+    } else {
+      // Navigate to PredictionScreen with all collected data
+      Navigator.pushReplacementNamed(
+        context,
+        AppConstants.predictionRoute,
+        arguments: {
+          'sleepData': widget.sleepData,
+          'dietaryData': widget.dietaryData,
+          'environmentalData': envData,
+        },
+      );
+    }
   }
 
   @override
@@ -189,9 +253,16 @@ class _EnvironmentalFactorsScreenState extends State<EnvironmentalFactorsScreen>
               padding: const EdgeInsets.only(top: 16, left: 24, right: 24),
               child: ElevatedButton(
                 onPressed: () {
-                  // Save environmental factors data
-                  final authProvider = Provider.of<AuthProvider>(context, listen: false);
-                  // Navigate to the prediction screen
+                  // Build environmental factors data object
+                  final environmentalData = _buildEnvironmentalData();
+
+                  // If in onSaveOnly mode, return data without saving
+                  if (widget.onSaveOnly) {
+                    Navigator.of(context).pop(environmentalData);
+                    return;
+                  }
+
+                  // Otherwise proceed with normal navigation
                   Navigator.pushReplacementNamed(context, AppConstants.predictionRoute);
                 },
                 style: ElevatedButton.styleFrom(

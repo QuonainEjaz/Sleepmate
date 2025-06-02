@@ -1,14 +1,25 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'package:dio/dio.dart';
 import '../models/prediction_model.dart';
 import '../models/sleep_data_model.dart';
-import '../utils/ml_helper.dart';
+import '../models/environmental_data_model.dart';
+import '../models/dietary_data_model.dart';
+import '../config/api_config.dart';
+import 'api_service.dart';
+import 'base_service.dart';
+import 'service_locator.dart';
+import 'logger_service.dart';
 
-class PredictionService {
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final String _collection = 'predictions';
-  final MLHelper _mlHelper = MLHelper();
+class PredictionService extends BaseService {
+  final _weatherDio = Dio();
+  final ApiService _apiService;
+  final LoggerService _logger = LoggerService();
+  static const String _weatherApiBaseUrl = 'https://api.openweathermap.org/data/2.5';
+  static const String _weatherApiKey = String.fromEnvironment('OPENWEATHER_API_KEY');
+  
+  PredictionService({ApiService? apiService})
+      : _apiService = apiService ?? ApiService(),
+        super();
   
   // Generate a new prediction
   Future<PredictionModel> generatePrediction(
@@ -32,122 +43,226 @@ class PredictionService {
         }).toList(),
       };
       
-      // Generate prediction using ML model
-      final predictionResult = await _mlHelper.runPrediction(inputData);
-      
-      // Create prediction model
-      final prediction = PredictionModel(
-        id: '',
-        userId: userId,
-        date: DateTime.now(),
-        predictionScore: predictionResult.predictionScore,
-        predictedInterruptionCount: predictionResult.predictedInterruptionCount,
-        predictedInterruptionWindows: predictionResult.predictedInterruptionWindows,
-        contributingFactors: predictionResult.contributingFactors,
-        recommendations: predictionResult.recommendations,
-        inputData: inputData,
-        createdAt: DateTime.now(),
+      // Generate prediction using backend ML model
+      final response = await _apiService.post(
+        ApiConfig.endpoints.predictions.generate,
+        inputData,
       );
-      
-      // Save to Firestore
-      final docRef = await _firestore.collection(_collection).add(prediction.toMap());
-      
-      // Return the prediction with the document ID
-      return prediction.copyWith(id: docRef.id);
+      return PredictionModel.fromJson(response);
     } catch (e) {
+      _logger.e('Error generating prediction', e);
       rethrow;
     }
   }
   
   // Get prediction by ID
   Future<PredictionModel?> getPredictionById(String id) async {
+    final cacheKey = super.generateCacheKey('prediction_$id');
+    
     try {
-      final doc = await _firestore.collection(_collection).doc(id).get();
-      if (doc.exists) {
-        return PredictionModel.fromFirestore(doc);
-      }
-      return null;
+      final response = await _apiService.get(ApiConfig.endpoints.predictions.byId(id));
+      return PredictionModel.fromJson(response);
     } catch (e) {
-      rethrow;
+      _logger.e('Error getting prediction by ID', e);
+      return null;
     }
   }
   
   // Get all predictions for a user
-  Stream<List<PredictionModel>> getPredictionsForUser(String userId) {
-    return _firestore
-        .collection(_collection)
-        .where('userId', isEqualTo: userId)
-        .orderBy('date', descending: true)
-        .snapshots()
-        .map((snapshot) {
-          return snapshot.docs
-              .map((doc) => PredictionModel.fromFirestore(doc))
-              .toList();
-        });
+  Future<List<PredictionModel>> getPredictionsForUser(String userId) async {
+    try {
+      final response = await _apiService.get(
+        ApiConfig.endpoints.predictions.byUser(userId),
+      );
+      return (response as List)
+          .map((data) => PredictionModel.fromJson(data))
+          .toList();
+    } catch (e) {
+      _logger.e('Error getting predictions for user', e);
+      return [];
+    }
+  }
+  
+  // Get prediction based on parameters (legacy method)  
+  Future<PredictionModel?> getPrediction(Map<String, dynamic> params) async {
+    try {
+      final response = await _apiService.get(
+        ApiConfig.endpoints.predictions.predict,
+        queryParameters: params,
+      );
+      return PredictionModel.fromJson(response);
+    } catch (e) {
+      _logger.e('Error getting prediction', e);
+      return null;
+    }
+  }
+  
+  // Make AI-based prediction with user-provided data
+  Future<PredictionModel?> makePrediction({
+    required Map<String, dynamic> sleepData,
+    required Map<String, dynamic> environmentalData,
+    required Map<String, dynamic> dietaryData,
+  }) async {
+    try {
+      _logger.i('Making AI prediction with user data');
+      
+      // Get current user ID
+      final userId = await serviceLocator.auth.getCurrentUserId();
+      if (userId == null) {
+        throw Exception('User ID not available');
+      }
+      
+      // Prepare data payload
+      final data = {
+        'userId': userId,
+        'sleepData': sleepData,
+        'environmentalData': environmentalData,
+        'dietaryData': dietaryData,
+      };
+      
+      // Send data to backend prediction endpoint
+      final response = await _apiService.post(
+        ApiConfig.endpoints.predictions.predict,
+        data,
+      );
+      
+      if (response != null && 
+          response is Map<String, dynamic>) {
+        // Convert the response to PredictionModel
+        return PredictionModel.fromJson(response);
+      }
+      
+      return null;
+    } catch (e) {
+      _logger.e('Error making AI prediction: ${e.toString()}');
+      return null;
+    }
   }
   
   // Get predictions for a date range
   Future<List<PredictionModel>> getPredictionsForDateRange(
       String userId, DateTime startDate, DateTime endDate) async {
     try {
-      final snapshot = await _firestore
-          .collection(_collection)
-          .where('userId', isEqualTo: userId)
-          .where('date', isGreaterThanOrEqualTo: Timestamp.fromDate(startDate))
-          .where('date', isLessThanOrEqualTo: Timestamp.fromDate(endDate))
-          .orderBy('date', descending: true)
-          .get();
+      final response = await _apiService.get(
+        ApiConfig.endpoints.predictions.byDateRange(startDate, endDate),
+      );
       
-      return snapshot.docs
-          .map((doc) => PredictionModel.fromFirestore(doc))
+      return (response as List)
+          .map((data) => PredictionModel.fromJson(data))
           .toList();
     } catch (e) {
-      rethrow;
+      _logger.e('Error getting predictions for date range', e);
+      return [];
     }
   }
   
   // Get latest prediction
-  Future<PredictionModel?> getLatestPrediction(String userId) async {
+  Future<Map<String, dynamic>> getLatestPrediction([String? userId]) async {
     try {
-      final snapshot = await _firestore
-          .collection(_collection)
-          .where('userId', isEqualTo: userId)
-          .orderBy('date', descending: true)
-          .limit(1)
-          .get();
-      
-      if (snapshot.docs.isNotEmpty) {
-        return PredictionModel.fromFirestore(snapshot.docs.first);
+      // If userId is not provided, get current user's ID
+      String? targetUserId = userId;
+      if (targetUserId == null) {
+        targetUserId = await serviceLocator.auth.getCurrentUserId();
       }
-      return null;
+      
+      // Handle case where we still don't have a userId
+      if (targetUserId == null) {
+        throw Exception('User ID not available');
+      }
+      
+      final response = await _apiService.get(
+        ApiConfig.endpoints.predictions.latest,
+        queryParameters: {'userId': targetUserId},
+      );
+      
+      // Return the full response data for flexibility in UI
+      if (response != null && response is Map<String, dynamic>) {
+        return response;
+      }
+      return {};
     } catch (e) {
-      rethrow;
+      _logger.e('Error getting latest prediction', e);
+      return {};
+    }
+  }
+  
+  // Get recommendations based on sleep data
+  Future<List<String>> getRecommendations([Map<String, dynamic>? params]) async {
+    try {
+      // If params is not provided, create an empty map
+      final queryParams = params ?? {};
+      
+      // If userId is not in params, get current user's ID
+      if (!queryParams.containsKey('userId')) {
+        final currentUserId = await serviceLocator.auth.getCurrentUserId();
+        if (currentUserId != null) {
+          queryParams['userId'] = currentUserId;
+        }
+      }
+      
+      final response = await _apiService.get(
+        ApiConfig.endpoints.predictions.recommendations,
+        queryParameters: queryParams,
+      );
+      
+      if (response != null) {
+        if (response is Map<String, dynamic> && response.containsKey('recommendations')) {
+          return List<String>.from(response['recommendations']);
+        } else if (response is List) {
+          return List<String>.from(response);
+        }
+      }
+      
+      // Return empty list if response is invalid
+      return <String>[];
+    } catch (e) {
+      _logger.e('Error getting recommendations', e);
+      return <String>[];
     }
   }
   
   // Get weather data from external API
   Future<Map<String, dynamic>> getWeatherData(double latitude, double longitude) async {
-    try {
-      final apiKey = 'YOUR_OPENWEATHERMAP_API_KEY'; // This would be stored securely in a config file
-      final url = 'https://api.openweathermap.org/data/2.5/weather?lat=$latitude&lon=$longitude&appid=$apiKey&units=metric';
-      
-      final response = await http.get(Uri.parse(url));
-      
-      if (response.statusCode == 200) {
-        return jsonDecode(response.body);
-      } else {
-        throw Exception('Failed to load weather data: ${response.statusCode}');
-      }
-    } catch (e) {
-      rethrow;
-    }
+    final cacheKey = generateCacheKey(
+      'weather_data',
+      {'lat': latitude, 'lon': longitude},
+    );
+    
+    return executeOperation(
+      operation: () async {
+        if (_weatherApiKey.isEmpty) {
+          throw Exception('OpenWeather API key not configured');
+        }
+        
+        final response = await _weatherDio.get(
+          '$_weatherApiBaseUrl/weather',
+          queryParameters: {
+            'lat': latitude,
+            'lon': longitude,
+            'appid': _weatherApiKey,
+            'units': 'metric',
+          },
+        );
+        
+        return response.data;
+      },
+      cacheKey: cacheKey,
+      cacheExpiration: const Duration(minutes: 30), // Weather data updates every 30 mins
+    );
   }
   
   // Delete prediction
   Future<void> deletePrediction(String id) async {
     try {
-      await _firestore.collection(_collection).doc(id).delete();
+      await _apiService.delete(ApiConfig.endpoints.predictions.byId(id));
+      // Clear related caches
+      await super.clearCache(super.generateCacheKey('prediction_$id'));
+      final userId = await serviceLocator.auth.getCurrentUserId();
+      if (userId != null) {
+        await super.clearCache(super.generateCacheKey('predictions_user_$userId'));
+      }
     } catch (e) {
+      _logger.e('Error deleting prediction', e);
       rethrow;
     }
   }

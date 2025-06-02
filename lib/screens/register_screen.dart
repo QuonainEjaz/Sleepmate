@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
-import 'dart:math' show cos, sin;
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:google_fonts/google_fonts.dart';
+
+import '../blocs/auth/auth_bloc.dart';
+import '../blocs/auth/auth_event.dart';
+import '../blocs/auth/auth_state.dart';
 import '../utils/app_constants.dart';
 import '../utils/app_theme.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({Key? key}) : super(key: key);
@@ -14,6 +18,20 @@ class RegisterScreen extends StatefulWidget {
 class _RegisterScreenState extends State<RegisterScreen> {
   bool _isPasswordVisible = false;
   bool _isConfirmPasswordVisible = false;
+  
+  final _usernameController = TextEditingController();
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
+  final _confirmPasswordController = TextEditingController();
+
+  @override
+  void dispose() {
+    _usernameController.dispose();
+    _emailController.dispose();
+    _passwordController.dispose();
+    _confirmPasswordController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -72,12 +90,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       // Username TextField
                       _buildTextField(
                         hint: 'Username',
+                        controller: _usernameController,
                       ),
                       const SizedBox(height: 16),
                       
                       // Email TextField
                       _buildTextField(
                         hint: 'Email',
+                        controller: _emailController,
                         keyboardType: TextInputType.emailAddress,
                       ),
                       const SizedBox(height: 16),
@@ -85,6 +105,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       // Password TextField
                       _buildTextField(
                         hint: 'Password',
+                        controller: _passwordController,
                         isPassword: true,
                         isPasswordVisible: _isPasswordVisible,
                         onVisibilityToggle: () {
@@ -98,6 +119,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       // Confirm Password TextField
                       _buildTextField(
                         hint: 'Confirm password',
+                        controller: _confirmPasswordController,
                         isPassword: true,
                         isPasswordVisible: _isConfirmPasswordVisible,
                         onVisibilityToggle: () {
@@ -106,30 +128,127 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           });
                         },
                       ),
-                      const SizedBox(height: 32),
+                      const SizedBox(height: 24),
                       
                       // Register Button
-                      SizedBox(
-                        width: double.infinity,
-                        height: 56,
-                        child: ElevatedButton(
-                          onPressed: () {
-                            // TODO: Implement registration logic
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(25),
+                      BlocConsumer<AuthBloc, AuthState>(
+                        listener: (context, state) {
+                          if (state is AuthAuthenticated) {
+                            Navigator.pushReplacementNamed(
+                              context,
+                              AppConstants.onboardingRoute,
+                            );
+                          } else if (state is AuthError) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(state.message),
+                                backgroundColor: Colors.red,
+                                duration: const Duration(seconds: 3),
+                              ),
+                            );
+                          }
+                        },
+                        builder: (context, state) {
+                          final bool isLoading = state is AuthLoading;
+                          
+                          return SizedBox(
+                            width: double.infinity,
+                            height: 56,
+                            child: ElevatedButton(
+                              onPressed: isLoading
+                                  ? null
+                                  : () {
+                                      // Validate all fields
+                                      final username = _usernameController.text.trim();
+                                      final email = _emailController.text.trim();
+                                      final password = _passwordController.text;
+                                      final confirmPassword = _confirmPasswordController.text;
+                                      
+                                      // Check for empty fields
+                                      if (username.isEmpty || email.isEmpty || password.isEmpty || confirmPassword.isEmpty) {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          const SnackBar(
+                                            content: Text('Please fill in all fields'),
+                                            backgroundColor: Colors.red,
+                                            duration: Duration(seconds: 3),
+                                          ),
+                                        );
+                                        return;
+                                      }
+                                      
+                                      // Validate email format
+                                      if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(email)) {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          const SnackBar(
+                                            content: Text('Please enter a valid email address'),
+                                            backgroundColor: Colors.red,
+                                            duration: Duration(seconds: 3),
+                                          ),
+                                        );
+                                        return;
+                                      }
+                                      
+                                      // Validate password length
+                                      if (password.length < 6) {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          const SnackBar(
+                                            content: Text('Password must be at least 6 characters long'),
+                                            backgroundColor: Colors.red,
+                                            duration: Duration(seconds: 3),
+                                          ),
+                                        );
+                                        return;
+                                      }
+                                      
+                                      // Check if passwords match
+                                      if (password != confirmPassword) {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          const SnackBar(
+                                            content: Text('Passwords do not match'),
+                                            backgroundColor: Colors.red,
+                                            duration: Duration(seconds: 3),
+                                          ),
+                                        );
+                                        return;
+                                      }
+                                      
+                                      // All validations passed, proceed with registration
+                                      context.read<AuthBloc>().add(
+                                        AuthRegisterRequested(
+                                          name: username,
+                                          email: email,
+                                          password: password,
+                                        ),
+                                      );
+                                    },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.white,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(25),
+                                ),
+                                disabledBackgroundColor: Colors.white.withOpacity(0.7),
+                              ),
+                              child: isLoading
+                                  ? const SizedBox(
+                                      width: 24,
+                                      height: 24,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        valueColor: AlwaysStoppedAnimation<Color>(
+                                          Color(0xFF2A2438),
+                                        ),
+                                      ),
+                                    )
+                                  : Text(
+                                      'Register',
+                                      style: AppTheme.modifyStyle(
+                                        AppTheme.buttonLarge,
+                                        color: const Color(0xFF2A2438),
+                                      ),
+                                    ),
                             ),
-                          ),
-                          child: Text(
-                            'Register',
-                            style: AppTheme.modifyStyle(
-                              AppTheme.buttonLarge,
-                              color: const Color(0xFF2A2438),
-                            ),
-                          ),
-                        ),
+                          );
+                        },
                       ),
                       const SizedBox(height: 115),
                       
@@ -181,6 +300,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     VoidCallback? onVisibilityToggle,
     TextInputType? keyboardType,
     BorderRadius? borderRadius,
+    TextEditingController? controller,
   }) {
     return Container(
       decoration: BoxDecoration(
@@ -188,6 +308,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         borderRadius: borderRadius ?? BorderRadius.circular(25),
       ),
       child: TextField(
+        controller: controller,
         style: AppTheme.bodyLarge,
         obscureText: isPassword && !(isPasswordVisible ?? false),
         keyboardType: keyboardType,

@@ -1,4 +1,4 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:intl/intl.dart';
 
 class UserModel {
   final String id;
@@ -29,38 +29,44 @@ class UserModel {
     required this.updatedAt,
   });
 
-  factory UserModel.fromFirestore(DocumentSnapshot doc) {
-    Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+  factory UserModel.fromJson(Map<String, dynamic> json) {
     return UserModel(
-      id: doc.id,
-      name: data['name'] ?? '',
-      email: data['email'] ?? '',
-      dateOfBirth: (data['dateOfBirth'] as Timestamp).toDate(),
-      gender: data['gender'] ?? '',
-      weight: (data['weight'] ?? 0).toDouble(),
-      height: (data['height'] ?? 0).toDouble(),
-      healthConditions: List<String>.from(data['healthConditions'] ?? []),
-      isAdmin: data['isAdmin'] ?? false,
-      profileImageUrl: data['profileImageUrl'],
-      createdAt: (data['createdAt'] as Timestamp).toDate(),
-      updatedAt: (data['updatedAt'] as Timestamp).toDate(),
+      id: json['id'] ?? '',
+      name: json['name'] ?? '',
+      email: json['email'] ?? '',
+      dateOfBirth: DateTime.parse(json['dateOfBirth']),
+      gender: json['gender'] ?? '',
+      weight: (json['weight'] ?? 0).toDouble(),
+      height: (json['height'] ?? 0).toDouble(),
+      healthConditions: List<String>.from(json['healthConditions'] ?? []),
+      isAdmin: json['isAdmin'] ?? false,
+      profileImageUrl: json['profileImageUrl'],
+      createdAt: DateTime.parse(json['createdAt']),
+      updatedAt: DateTime.parse(json['updatedAt']),
     );
   }
 
-  Map<String, dynamic> toMap() {
-    return {
+  Map<String, dynamic> toJson() {
+    final json = {
       'name': name,
       'email': email,
-      'dateOfBirth': Timestamp.fromDate(dateOfBirth),
+      'dateOfBirth': dateOfBirth.toIso8601String(),
       'gender': gender,
       'weight': weight,
       'height': height,
       'healthConditions': healthConditions,
       'isAdmin': isAdmin,
       'profileImageUrl': profileImageUrl,
-      'createdAt': Timestamp.fromDate(createdAt),
-      'updatedAt': Timestamp.fromDate(updatedAt),
+      'createdAt': createdAt.toIso8601String(),
+      'updatedAt': updatedAt.toIso8601String(),
     };
+    
+    // Only include id if it's not empty
+    if (id.isNotEmpty) {
+      json['id'] = id;
+    }
+    
+    return json;
   }
 
   UserModel copyWith({

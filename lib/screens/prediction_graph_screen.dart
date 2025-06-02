@@ -3,10 +3,50 @@ import '../utils/app_constants.dart';
 import '../widgets/custom_bottom_navigation.dart';
 import '../widgets/sleep_factors_pie_chart.dart';
 import '../widgets/custom_profile_drawer.dart';
+import 'package:flutter/services.dart';
+import '../services/prediction_service.dart';
+import '../widgets/loading_indicator.dart';
 
-class PredictionGraphScreen extends StatelessWidget {
+class PredictionGraphScreen extends StatefulWidget {
   const PredictionGraphScreen({super.key});
 
+  @override
+  State<PredictionGraphScreen> createState() => _PredictionGraphScreenState();
+}
+
+class _PredictionGraphScreenState extends State<PredictionGraphScreen> {
+  final PredictionService _predictionService = PredictionService();
+  
+  bool _isLoading = true;
+  String? _errorMessage;
+  Map<String, dynamic> _contributingFactors = {};
+  
+  @override
+  void initState() {
+    super.initState();
+    _fetchPredictionData();
+  }
+  
+  Future<void> _fetchPredictionData() async {
+    try {
+      setState(() {
+        _isLoading = true;
+        _errorMessage = null;
+      });
+      
+      final predictionData = await _predictionService.getLatestPrediction();
+      setState(() {
+        _contributingFactors = predictionData['contributingFactors'] ?? {};
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _errorMessage = 'Failed to load prediction data: ${e.toString()}';
+        _isLoading = false;
+      });
+    }
+  }
+  
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -37,9 +77,32 @@ class PredictionGraphScreen extends StatelessWidget {
             Expanded(
               child: Padding(
                 padding: const EdgeInsets.all(24),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
+                child: _isLoading
+                  ? const Center(child: LoadingIndicator())
+                  : _errorMessage != null
+                    ? Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              _errorMessage!,
+                              style: const TextStyle(
+                                color: Colors.red,
+                                fontSize: 16,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                            const SizedBox(height: 16),
+                            ElevatedButton(
+                              onPressed: _fetchPredictionData,
+                              child: const Text('Try Again'),
+                            ),
+                          ],
+                        ),
+                      )
+                    : Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
                     const Text(
                       "Here's Your prediction\nin graph form!",
                       textAlign: TextAlign.center,
@@ -52,7 +115,7 @@ class PredictionGraphScreen extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 20),
-                    const SleepFactorsPieChart(),
+                    SleepFactorsPieChart(contributingFactors: _contributingFactors),
                     const Spacer(),
                     Center(
                       child: SizedBox(
