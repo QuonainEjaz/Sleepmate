@@ -51,7 +51,7 @@ class _LoginScreenState extends State<LoginScreen> {
         } else if (state is AuthAuthenticated) {
           Navigator.of(context).pushReplacement(
             MaterialPageRoute(
-              builder: (context) => const SleepPatternsScreen(),
+              builder: (context) => const OnboardingScreen(),
             ),
           );
         }
