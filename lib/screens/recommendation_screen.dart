@@ -140,152 +140,170 @@ class _RecommendationScreenState extends State<RecommendationScreen> {
                             ],
                           ),
                         )
-                      : Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 35, vertical: 30),
-                          child: SingleChildScrollView(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                // User Greeting and Profile Icon
-                                Row(
-                                  children: [
-                                    Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        const Text(
-                                          'Hi!,',
-                                          style: TextStyle(
-                                            fontFamily: 'Montaga',
-                                            fontSize: 36,
-                                            fontWeight: FontWeight.w500,
-                                            color: Color(0xFF2D2041),
-                                          ),
-                                        ),
-                                        Text( // Not const
-                                          _userName,
-                                          style: const TextStyle(
-                                            fontFamily: 'Montaga',
-                                            fontSize: 36,
-                                            fontWeight: FontWeight.w500,
-                                            color: Color(0xFF2D2041),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                    const Spacer(),
-                                    Container(
-                                      width: 80,
-                                      height: 80,
-                                      decoration: const BoxDecoration(
-                                        shape: BoxShape.circle,
-                                        color: Color(0xFFEFEFEF),
-                                      ),
-                                      child: _userProfile?.profileImageUrl != null && _userProfile!.profileImageUrl!.isNotEmpty
-                                          ? ClipOval(
-                                              child: Image.network(
-                                                _userProfile!.profileImageUrl!, // Not const
-                                                fit: BoxFit.cover,
-                                                errorBuilder: (context, error, stackTrace) => const Icon(
-                                                  Icons.person,
-                                                  color: Color(0xFF2D2041),
-                                                  size: 45,
-                                                ),
-                                              ),
-                                            )
-                                          : const Icon(
-                                              Icons.person,
-                                              color: Color(0xFF2D2041),
-                                              size: 45,
-                                            ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 24),
-                                // Recommendations Container
-                                Container(
-                                  width: double.infinity,
-                                  padding: const EdgeInsets.all(16),
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFF2D2041),
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                  child: Column(
+                      : Column(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          crossAxisAlignment: CrossAxisAlignment.center, 
+                          children: [
+                            Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 35, vertical: 30),
+                              child: Row(
+                                children: [
+                                  Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
-                                      Text( // Not const
-                                        'Dear $_userName, you can follow these recommendations for better sleep experience:',
-                                        style: const TextStyle(
-                                          fontFamily: 'Poppins',
-                                          fontSize: 14,
-                                          color: Colors.white,
-                                          height: 1.5,
+                                      const Text(
+                                        'Hi!,',
+                                        style: TextStyle(
+                                          fontFamily: 'Montaga',
+                                          fontSize: 36,
+                                          fontWeight: FontWeight.w500,
+                                          color: Color(0xFF2D2041),
                                         ),
                                       ),
-                                      const SizedBox(height: 16),
-                                      if (_recommendations.isEmpty) // Not const
-                                        _buildBulletPoint('No specific recommendations available yet. Try adding more sleep data.')
-                                      else
-                                        ..._recommendations.map((recommendation) => _buildBulletPoint(recommendation)).toList(),
-                                      
-                                      if (_contributingFactors.isNotEmpty) ...[ // Not const
-                                        const SizedBox(height: 16),
-                                        const Text(
-                                          'Key factors affecting your sleep:',
-                                          style: TextStyle(
-                                            fontFamily: 'Poppins',
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 14,
-                                            color: Colors.white,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 8),
-                                        ..._formatContributingFactors().map((factor) => _buildBulletPoint(factor)).toList(),
-                                      ],
-                                      const SizedBox(height: 16),
-                                      const Text(
-                                        'Small adjustments can greatly improve your sleep quality!',
-                                        style: TextStyle(
-                                          fontFamily: 'Poppins',
-                                          fontSize: 14,
-                                          color: Colors.white,
-                                          height: 1.5,
+                                      Text( 
+                                        _userName,
+                                        style: const TextStyle(
+                                          fontFamily: 'Montaga',
+                                          fontSize: 36,
+                                          fontWeight: FontWeight.w500,
+                                          color: Color(0xFF2D2041),
                                         ),
                                       ),
                                     ],
                                   ),
-                                ),
-                                const SizedBox(height: 54),
-                                // Feedback Button
-                                Center(
-                                  child: SizedBox(
-                                    width: 250,
-                                    child: ElevatedButton(
-                                      onPressed: () {
-                                        Navigator.pushNamed(context, AppConstants.sleepQualityFeedbackRoute);
-                                      },
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: const Color(0xFF5C5470),
-                                        padding: const EdgeInsets.symmetric(vertical: 16),
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(25),
+                                  const Spacer(),
+                                  Container(
+                                    width: 80,
+                                    height: 80,
+                                    decoration: const BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      color: Color(0xFFEFEFEF),
+                                    ),
+                                    child: _userProfile?.profileImageUrl != null && _userProfile!.profileImageUrl!.isNotEmpty
+                                        ? ClipOval(
+                                            child: Image.network(
+                                              _userProfile!.profileImageUrl!,
+                                              fit: BoxFit.cover,
+                                              errorBuilder: (context, error, stackTrace) => const Icon(
+                                                Icons.person,
+                                                color: Color(0xFF2D2041),
+                                                size: 45,
+                                              ),
+                                            ),
+                                          )
+                                        : const Icon(
+                                            Icons.person,
+                                            color: Color(0xFF2D2041),
+                                            size: 45,
+                                          ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Expanded(
+                              child: Center(
+                                child: ConstrainedBox(
+                                  constraints: const BoxConstraints(maxWidth: 380.0),
+                                  child: Container(
+                                    margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                                    padding: const EdgeInsets.all(16),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFF2D2041),
+                                      borderRadius: BorderRadius.circular(12),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: Colors.black.withOpacity(0.1),
+                                          spreadRadius: 1,
+                                          blurRadius: 5,
+                                          offset: const Offset(0, 3),
                                         ),
-                                        elevation: 0,
-                                      ),
-                                      child: const Text(
-                                        'Feedback',
-                                        style: TextStyle(
-                                          fontFamily: 'Montaga',
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.w600,
-                                          color: Colors.white,
+                                      ],
+                                    ),
+                                    child: ConstrainedBox(
+                                      constraints: const BoxConstraints(maxHeight: 400.0),
+                                      child: SingleChildScrollView(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Text( 
+                                              'Dear $_userName, you can follow these recommendations for better sleep experience:',
+                                              style: const TextStyle(
+                                                fontFamily: 'Poppins',
+                                                fontSize: 14,
+                                                color: Colors.white,
+                                                height: 1.5,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 16),
+                                            if (_recommendations.isEmpty) 
+                                              _buildBulletPoint('No specific recommendations available yet. Try adding more sleep data.')
+                                            else
+                                              ..._recommendations.map((recommendation) => _buildBulletPoint(recommendation)).toList(),
+                                            
+                                            if (_contributingFactors.isNotEmpty) ...[ 
+                                              const SizedBox(height: 16),
+                                              const Text(
+                                                'Key factors affecting your sleep:',
+                                                style: TextStyle(
+                                                  fontFamily: 'Poppins',
+                                                  fontWeight: FontWeight.bold,
+                                                  fontSize: 14,
+                                                  color: Colors.white,
+                                                ),
+                                              ),
+                                              const SizedBox(height: 8),
+                                              ..._formatContributingFactors().map((factor) => _buildBulletPoint(factor)).toList(),
+                                            ],
+                                            const SizedBox(height: 16),
+                                            const Text(
+                                              'Small adjustments can greatly improve your sleep quality!',
+                                              style: TextStyle(
+                                                fontFamily: 'Poppins',
+                                                fontSize: 14,
+                                                color: Colors.white,
+                                                height: 1.5,
+                                              ),
+                                            ),
+                                          ],
                                         ),
                                       ),
                                     ),
                                   ),
                                 ),
-                              ], // Closes SingleChildScrollView's Column children
+                              ),
                             ),
-                          ),
+                            Padding(
+                              padding: const EdgeInsets.only(bottom: 30, top: 20),
+                              child: Center(
+                                child: SizedBox(
+                                  width: 250,
+                                  child: ElevatedButton(
+                                    onPressed: () {
+                                      Navigator.pushNamed(context, AppConstants.sleepQualityFeedbackRoute);
+                                    },
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: const Color(0xFF5C5470),
+                                      padding: const EdgeInsets.symmetric(vertical: 16),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(25),
+                                      ),
+                                      elevation: 0,
+                                    ),
+                                    child: const Text(
+                                      'Feedback',
+                                      style: TextStyle(
+                                        fontFamily: 'Montaga',
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w600,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
                         ), // Closes Padding
             ), // Closes Expanded
           ], // Closes SafeArea's Column children
