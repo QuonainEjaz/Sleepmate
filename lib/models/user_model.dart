@@ -34,15 +34,15 @@ class UserModel {
       id: json['id'] ?? '',
       name: json['name'] ?? '',
       email: json['email'] ?? '',
-      dateOfBirth: DateTime.parse(json['dateOfBirth']),
+      dateOfBirth: json['dateOfBirth'] != null ? DateTime.parse(json['dateOfBirth']) : DateTime(2000),
       gender: json['gender'] ?? '',
       weight: (json['weight'] ?? 0).toDouble(),
       height: (json['height'] ?? 0).toDouble(),
       healthConditions: List<String>.from(json['healthConditions'] ?? []),
       isAdmin: json['isAdmin'] ?? false,
       profileImageUrl: json['profileImageUrl'],
-      createdAt: DateTime.parse(json['createdAt']),
-      updatedAt: DateTime.parse(json['updatedAt']),
+      createdAt: json['createdAt'] != null ? DateTime.parse(json['createdAt']) : DateTime.now(),
+      updatedAt: json['updatedAt'] != null ? DateTime.parse(json['updatedAt']) : DateTime.now(),
     );
   }
 

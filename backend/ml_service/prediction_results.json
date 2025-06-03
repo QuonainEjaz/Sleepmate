@@ -1,0 +1,21 @@
+{
+  "prediction": "\ud83d\ude34 Your sleep quality needs attention. Let's work on it!",
+  "detailedAnalysis": "We've analyzed your sleep data and found several factors that may affect your rest. You're averaging only 6.5 hours of sleep (slightly below the recommended 7-9 hours). Night awakenings (2 times) may be reducing your deep sleep quality. Device use before bed is likely affecting your ability to fall asleep due to blue light exposure. Your relaxation level before sleep is below average (2/5), which may be affecting sleep onset. Room temperature (23\u00b0C) is slightly above the ideal range of 16-20\u00b0C for optimal sleep. Moderate (30-60 dB) noise levels may impact your ability to rest fully. Light intensity in your room (50 units) may be interfering with melatonin production. Your stress level is relatively high (7/10), which can affect sleep quality. Late dinner (at 21:30) may be affecting your digestion during sleep.",
+  "sleepDisorderProbability": 0.55,
+  "recommendations": "Dear Quonain, you can follow these recommendations for better sleep experience! Sleep at least 7 hours on weekdays (currently 6.5 hours). Reduce device usage 1 hour before bed to improve melatonin production. Try relaxation techniques like deep breathing or meditation before bed. Maintain bedroom temperature between 16-20\u00b0C (currently 23\u00b0C). Create a quieter sleeping environment or use white noise to mask disruptive sounds. Reduce light exposure in your bedroom with blackout curtains or an eye mask. Practice stress management techniques like mindfulness or journaling. Have dinner at least 2-3 hours before bedtime to improve digestion. Small adjustments can greatly improve your sleep quality!",
+  "predictionScore": 2.8,
+  "normalizedScore": 0.28,
+  "predictedInterruptionCount": 2,
+  "predictedInterruptionWindows": [
+    {
+      "startTime": "00:36",
+      "endTime": "00:50",
+      "probability": 0.68
+    },
+    {
+      "startTime": "02:38",
+      "endTime": "02:51",
+      "probability": 0.68
+    }
+  ]
+}

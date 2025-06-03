@@ -4,6 +4,9 @@ import '../providers/auth_provider.dart';
 import '../utils/app_constants.dart';
 import '../widgets/custom_bottom_navigation.dart';
 import '../widgets/custom_profile_drawer.dart';
+import '../services/prediction_service.dart';
+import '../models/prediction_model.dart';
+import '../widgets/loading_indicator.dart';
 
 class EnvironmentalFactorsScreen extends StatefulWidget {
   final bool onSaveOnly;
@@ -22,19 +25,31 @@ class EnvironmentalFactorsScreen extends StatefulWidget {
 }
 
 class _EnvironmentalFactorsScreenState extends State<EnvironmentalFactorsScreen> {
-  String _lightIntensity = '450 lux';
-  String _temperature = '22 °C';
+  // Text controllers for inputable fields
+  final TextEditingController _lightIntensityController = TextEditingController(text: '450');
+  final TextEditingController _temperatureController = TextEditingController(text: '22');
   String _soundExposure = 'Quiet (< 30 dB)';
+  bool _isLoading = false;
+  
+  @override
+  void initState() {
+    super.initState();
+  }
+  
+  @override
+  void dispose() {
+    _lightIntensityController.dispose();
+    _temperatureController.dispose();
+    super.dispose();
+  }
 
   // Helper method to build environmental data object
   Map<String, dynamic> _buildEnvironmentalData() {
-    // Parse light intensity (removing 'lux' and converting to number)
-    final lightMatch = RegExp(r'(\d+)').firstMatch(_lightIntensity);
-    final lightValue = lightMatch != null ? int.parse(lightMatch.group(1)!) : 450;
-
-    // Parse temperature (removing '°C' and converting to number)
-    final tempMatch = RegExp(r'(\d+)').firstMatch(_temperature);
-    final tempValue = tempMatch != null ? int.parse(tempMatch.group(1)!) : 22;
+    // Get light intensity value from controller
+    final lightValue = int.tryParse(_lightIntensityController.text) ?? 450;
+    
+    // Get temperature value from controller
+    final tempValue = int.tryParse(_temperatureController.text) ?? 22;
 
     // Map sound exposure to numerical value
     int soundValue;
@@ -61,7 +76,7 @@ class _EnvironmentalFactorsScreenState extends State<EnvironmentalFactorsScreen>
     };
   }
 
-  Widget _buildInputField(String label, String value, {IconData? icon}) {
+  Widget _buildInputField(String label, {TextEditingController? controller, IconData? icon, String? suffix}) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
@@ -76,7 +91,7 @@ class _EnvironmentalFactorsScreenState extends State<EnvironmentalFactorsScreen>
         Container(
           width: 170,
           height: 48,
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
           decoration: BoxDecoration(
             border: Border.all(color: const Color(0xFF31244C), width: 2),
             borderRadius: BorderRadius.circular(10),
@@ -84,16 +99,43 @@ class _EnvironmentalFactorsScreenState extends State<EnvironmentalFactorsScreen>
           ),
           child: Row(
             children: [
-              Text(
-                value,
-                style: const TextStyle(
-                  fontFamily: 'Montaga',
-                  fontSize: 16,
-                  color: Colors.black87,
+              // Use TextField for inputable fields when controller is provided
+              if (controller != null) ...[              
+                Expanded(
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: controller,
+                          keyboardType: TextInputType.number,
+                          style: const TextStyle(
+                            fontFamily: 'Montaga',
+                            fontSize: 16,
+                            color: Colors.black87,
+                          ),
+                          decoration: const InputDecoration(
+                            border: InputBorder.none,
+                            contentPadding: EdgeInsets.symmetric(vertical: 8),
+                            isDense: true,
+                          ),
+                        ),
+                      ),
+                      if (suffix != null)
+                        Text(
+                          ' $suffix',
+                          style: const TextStyle(
+                            fontFamily: 'Montaga',
+                            fontSize: 16,
+                            color: Colors.black87,
+                          ),
+                        ),
+                    ],
+                  ),
                 ),
-              ),
-              if (icon != null) ...[
-                const SizedBox(width: 70),
+              ],
+              if (icon != null) ...[                
+                const SizedBox(width: 10),
                 Icon(
                   icon,
                   size: 22,
@@ -107,24 +149,58 @@ class _EnvironmentalFactorsScreenState extends State<EnvironmentalFactorsScreen>
     );
   }
 
-  // Save environmental data and navigate to PredictionScreen
-  void _saveAndContinue() {
-    final envData = _buildEnvironmentalData();
+  // Save environmental data, send to backend ML model, and navigate to PredictionScreen
+  Future<void> _saveAndContinue() async {
+    setState(() {
+      _isLoading = true;
+    });
     
-    if (widget.onSaveOnly) {
-      // Return data without saving if in onSaveOnly mode
-      Navigator.pop(context, envData);
-    } else {
-      // Navigate to PredictionScreen with all collected data
-      Navigator.pushReplacementNamed(
-        context,
-        AppConstants.predictionRoute,
-        arguments: {
-          'sleepData': widget.sleepData,
-          'dietaryData': widget.dietaryData,
-          'environmentalData': envData,
-        },
+    try {
+      final envData = _buildEnvironmentalData();
+      
+      if (widget.onSaveOnly) {
+        // Return data without saving if in onSaveOnly mode
+        Navigator.pop(context, envData);
+        return;
+      }
+      
+      // If sleepData or dietaryData is null, use empty maps instead of showing an error
+      // This allows default values in the form to be used
+      final sleepData = widget.sleepData ?? {};
+      final dietaryData = widget.dietaryData ?? {};
+      
+      // Send data to backend ML model for prediction
+      final prediction = await Provider.of<PredictionService>(context, listen: false).makePrediction(
+        sleepData: sleepData,
+        environmentalData: envData,
+        dietaryData: dietaryData,
       );
+      
+      if (mounted) {
+        // Navigate to PredictionScreen with prediction results
+        Navigator.pushReplacementNamed(
+          context,
+          AppConstants.predictionRoute,
+          arguments: {
+            'sleepData': sleepData,
+            'dietaryData': dietaryData,
+            'environmentalData': envData,
+            'prediction': prediction?.toJson(),
+          },
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error sending data to ML model: $e')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -161,9 +237,122 @@ class _EnvironmentalFactorsScreenState extends State<EnvironmentalFactorsScreen>
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _buildInputField('Light Intensity', _lightIntensity, icon: Icons.wb_sunny_outlined),
+                    // Light Intensity Input
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          'Light Intensity',
+                          style: TextStyle(
+                            fontFamily: 'Montaga',
+                            fontSize: 18,
+                            color: Colors.black87,
+                          ),
+                        ),
+                        Container(
+                          width: 170,
+                          height: 48,
+                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                          decoration: BoxDecoration(
+                            border: Border.all(color: const Color(0xFF31244C), width: 2),
+                            borderRadius: BorderRadius.circular(10),
+                            color: Colors.white,
+                          ),
+                          child: Row(
+                            children: [
+                              SizedBox(
+                                width: 50,
+                                child: TextFormField(
+                                  controller: _lightIntensityController,
+                                  keyboardType: TextInputType.number,
+                                  textAlign: TextAlign.end,
+                                  style: const TextStyle(
+                                    fontFamily: 'Montaga',
+                                    fontSize: 16,
+                                    color: Colors.black87,
+                                  ),
+                                  decoration: const InputDecoration(
+                                    border: InputBorder.none,
+                                    contentPadding: EdgeInsets.symmetric(vertical: 8),
+                                    isDense: true,
+                                  ),
+                                ),
+                              ),
+                              const Text(
+                                ' lux',
+                                style: TextStyle(
+                                  fontFamily: 'Montaga',
+                                  fontSize: 16,
+                                  color: Colors.black87,
+                                ),
+                              ),
+                              const Spacer(),
+                              Icon(
+                                Icons.wb_sunny_outlined,
+                                size: 22,
+                                color: Colors.grey.shade600,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
                     const SizedBox(height: 16),
-                    _buildInputField('Temperature', _temperature),
+                    
+                    // Temperature Input
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          'Temperature',
+                          style: TextStyle(
+                            fontFamily: 'Montaga',
+                            fontSize: 18,
+                            color: Colors.black87,
+                          ),
+                        ),
+                        Container(
+                          width: 170,
+                          height: 48,
+                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                          decoration: BoxDecoration(
+                            border: Border.all(color: const Color(0xFF31244C), width: 2),
+                            borderRadius: BorderRadius.circular(10),
+                            color: Colors.white,
+                          ),
+                          child: Row(
+                            children: [
+                              SizedBox(
+                                width: 50,
+                                child: TextFormField(
+                                  controller: _temperatureController,
+                                  keyboardType: TextInputType.number,
+                                  textAlign: TextAlign.end,
+                                  style: const TextStyle(
+                                    fontFamily: 'Montaga',
+                                    fontSize: 16,
+                                    color: Colors.black87,
+                                  ),
+                                  decoration: const InputDecoration(
+                                    border: InputBorder.none,
+                                    contentPadding: EdgeInsets.symmetric(vertical: 8),
+                                    isDense: true,
+                                  ),
+                                ),
+                              ),
+                              const Text(
+                                ' °C',
+                                style: TextStyle(
+                                  fontFamily: 'Montaga',
+                                  fontSize: 16,
+                                  color: Colors.black87,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
                     const SizedBox(height: 16),
                     const Text(
                       'Sound Exposure',
@@ -248,39 +437,38 @@ class _EnvironmentalFactorsScreenState extends State<EnvironmentalFactorsScreen>
                 ),
               ),
             ),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.only(top: 16, left: 24, right: 24),
-              child: ElevatedButton(
-                onPressed: () {
-                  // Build environmental factors data object
-                  final environmentalData = _buildEnvironmentalData();
-
-                  // If in onSaveOnly mode, return data without saving
-                  if (widget.onSaveOnly) {
-                    Navigator.of(context).pop(environmentalData);
-                    return;
-                  }
-
-                  // Otherwise proceed with normal navigation
-                  Navigator.pushReplacementNamed(context, AppConstants.predictionRoute);
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF65558F),
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(25),
+            Center(
+              child: Container(
+                width: MediaQuery.of(context).size.width * 0.90,
+                padding: const EdgeInsets.only(top: 16, left: 24, right: 24),
+                child: ElevatedButton(
+                  onPressed: _isLoading ? null : _saveAndContinue,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF65558F),
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(25),
+                    ),
+                    elevation: 0,
                   ),
-                  elevation: 0,
-                ),
-                child: const Text(
-                  'View Prediction',
-                  style: TextStyle(
-                    fontFamily: 'Montaga',
-                    fontSize: 18,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.white,
-                  ),
+                  child: _isLoading 
+                    ? const SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(
+                          color: Colors.white,
+                          strokeWidth: 2.0,
+                        ),
+                      )
+                    : const Text(
+                        'View Prediction',
+                        style: TextStyle(
+                          fontFamily: 'Montaga',
+                          fontSize: 18,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white,
+                        ),
+                      ),
                 ),
               ),
             ),

@@ -14,20 +14,23 @@ import '../widgets/error_message.dart';
 import '../services/prediction_service.dart';
 import '../services/auth_service.dart';
 import 'recommendation_screen.dart';
-import 'add_sleep_data_screen.dart';
+// import 'add_sleep_data_screen.dart'; // Removed missing import
 import 'environmental_factors_screen.dart';
 import 'dietary_habits_screen.dart';
+import 'prediction_graph_screen.dart';
 
 class PredictionScreen extends StatefulWidget {
   final Map<String, dynamic>? sleepData;
   final Map<String, dynamic>? dietaryData;
   final Map<String, dynamic>? environmentalData;
+  final Map<String, dynamic>? prediction;
 
   const PredictionScreen({
     super.key,
     this.sleepData,
     this.dietaryData,
     this.environmentalData,
+    this.prediction,
   });
 
   @override
@@ -50,14 +53,29 @@ class _PredictionScreenState extends State<PredictionScreen> {
   void initState() {
     super.initState();
     
-    // If we have all the data, make a prediction
-    if (widget.sleepData != null && 
+    // Load user data first (for name and profile image)
+    _loadUserData();
+    
+    // If prediction data is passed from environmental factors screen
+    if (widget.prediction != null) {
+      setState(() {
+        _prediction = PredictionModel.fromJson(widget.prediction!);
+        _isLoading = false;
+      });
+    }
+    // If we have all the data but no prediction, make a prediction
+    else if (widget.sleepData != null && 
         widget.dietaryData != null && 
         widget.environmentalData != null) {
       _makePrediction();
     } else {
-      // Otherwise, load the user's data as before
-      _loadData();
+      // First check if we have existing prediction data
+      _fetchLatestPrediction().then((hasPrediction) {
+        if (!hasPrediction && mounted) {
+          // If no prediction data exists, start data collection flow
+          _startDataCollection();
+        }
+      });
     }
   }
   
@@ -99,7 +117,66 @@ class _PredictionScreenState extends State<PredictionScreen> {
     }
   }
 
-  // Load user data (original implementation)
+  Future<bool> _fetchLatestPrediction() async {
+    if (mounted) {
+      setState(() {
+        _isLoading = true;
+        _errorMessage = null;
+      });
+    }
+
+    try {
+      final predictionService = serviceLocator<PredictionService>();
+      final predictionData = await predictionService.getLatestPrediction();
+
+      if (mounted) {
+        setState(() {
+          if (predictionData != null && predictionData.isNotEmpty) {
+            _prediction = PredictionModel.fromJson(predictionData);
+          } else {
+            _prediction = null;
+          }
+          _isLoading = false;
+        });
+      }
+      return predictionData != null && predictionData.isNotEmpty; // Return true if we have prediction data
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _errorMessage = 'Failed to load prediction data: ${e.toString()}';
+          _isLoading = false;
+        });
+      }
+      return false; // Return false if there was an error or no data
+    }
+  }
+  
+  // Start the data collection flow by sequentially navigating through the three screens
+  Future<void> _startDataCollection() async {
+    if (!mounted) return;
+    
+    // Automatically start the prediction with user data flow
+    await Future.delayed(Duration(milliseconds: 300)); // Short delay to ensure UI is stable
+    _makePredictionWithUserData();
+  }
+
+  // Load just the user profile data (name, image, etc.)
+  Future<void> _loadUserData() async {
+    try {
+      // Load user profile for the name and profile image
+      final userProfile = await _authService.getCurrentUserModel();
+      if (userProfile != null && mounted) {
+        setState(() {
+          _userName = userProfile.name ?? 'User';
+          _user = userProfile;
+        });
+      }
+    } catch (e) {
+      print('Error loading user data: $e');
+    }
+  }
+  
+  // Load user data and prediction (original implementation)
   Future<void> _loadData() async {
     try {
       setState(() {
@@ -146,7 +223,9 @@ class _PredictionScreenState extends State<PredictionScreen> {
 
     try {
       // Call the backend to generate a new prediction
-      await serviceLocator.prediction.generatePrediction(
+      final predictionService = serviceLocator<PredictionService>();
+      
+      await predictionService.generatePrediction(
         _user!.id,
         {}, // Environmental data placeholder
         {}, // Dietary data placeholder
@@ -174,98 +253,95 @@ class _PredictionScreenState extends State<PredictionScreen> {
         _generationError = null;
       });
       
-      // Navigate to sleep data input screen
-      final sleepData = await Navigator.push<Map<String, dynamic>>(
+      // Initialize with empty maps which will be used if user cancels any screen
+      Map<String, dynamic> sleepData = {}; // Use default empty sleep data
+      Map<String, dynamic> environmentalData = {};
+      Map<String, dynamic> dietaryData = {};
+      
+      // Skip the sleep data collection screen
+      // If already unmounted, don't continue
+      if (!mounted) return;
+      
+      // Navigate to environmental factors input screen with previous data
+      final environmentalDataResult = await Navigator.push<Map<String, dynamic>>(
         context,
         MaterialPageRoute(
-          builder: (context) => const AddSleepDataScreen(
+          builder: (context) => EnvironmentalFactorsScreen(
             onSaveOnly: true, // Don't save to backend, just return data
+            sleepData: sleepData, // Pass previously collected data
           ),
         ),
       );
       
-      // If user cancelled, abort prediction
-      if (sleepData == null) {
-        setState(() {
-          _isGenerating = false;
-        });
-        return;
+      // Use result if available, otherwise keep empty map
+      if (environmentalDataResult != null) {
+        environmentalData = environmentalDataResult;
       }
       
-      // Navigate to environmental factors input screen
-      final environmentalData = await Navigator.push<Map<String, dynamic>>(
+      // If already unmounted, don't continue
+      if (!mounted) return;
+      
+      // Navigate to dietary habits input screen with previous data
+      final dietaryDataResult = await Navigator.push<Map<String, dynamic>>(
         context,
         MaterialPageRoute(
-          builder: (context) => const EnvironmentalFactorsScreen(
+          builder: (context) => DietaryHabitsScreen(
             onSaveOnly: true, // Don't save to backend, just return data
+            sleepData: sleepData, // Pass previously collected data
           ),
         ),
       );
       
-      // If user cancelled, abort prediction
-      if (environmentalData == null) {
-        setState(() {
-          _isGenerating = false;
-        });
-        return;
+      // Use result if available, otherwise keep empty map
+      if (dietaryDataResult != null) {
+        dietaryData = dietaryDataResult;
       }
       
-      // Navigate to dietary habits input screen
-      final dietaryData = await Navigator.push<Map<String, dynamic>>(
-        context,
-        MaterialPageRoute(
-          builder: (context) => const DietaryHabitsScreen(
-            onSaveOnly: true, // Don't save to backend, just return data
-          ),
-        ),
-      );
+      // If already unmounted, don't continue
+      if (!mounted) return;
       
-      // If user cancelled, abort prediction
-      if (dietaryData == null) {
-        setState(() {
-          _isGenerating = false;
-        });
-        return;
-      }
+      // Make prediction with collected data - uses default values where needed
+      final predictionService = serviceLocator<PredictionService>();
       
-      // Make prediction with collected data
-      final prediction = await serviceLocator.prediction.makePrediction(
+      final prediction = await predictionService.makePrediction(
         sleepData: sleepData,
         environmentalData: environmentalData,
         dietaryData: dietaryData,
       );
       
       // Get recommendations based on the data
-      final recommendations = await serviceLocator.prediction.getRecommendations({
+      final recommendations = await predictionService.getRecommendations({
         'sleepData': sleepData,
         'environmentalData': environmentalData,
         'dietaryData': dietaryData,
       });
       
-      if (prediction != null) {
+      if (prediction != null && mounted) {
         setState(() {
           _prediction = prediction.copyWith(recommendations: recommendations);
           _isGenerating = false;
         });
-      } else {
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('AI prediction generated successfully!')),
+        );
+      } else if (mounted) {
         setState(() {
           _generationError = 'Failed to generate prediction';
           _isGenerating = false;
         });
-      }
-      
-      if (mounted) {
+        
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('AI prediction generated successfully!')),
+          const SnackBar(content: Text('Could not generate prediction. Please try again.')),
         );
       }
     } catch (e) {
-      setState(() {
-        _generationError = 'Failed to generate AI prediction: ${e.toString()}';
-        _isGenerating = false;
-      });
-      
       if (mounted) {
+        setState(() {
+          _generationError = 'Failed to generate AI prediction: ${e.toString()}';
+          _isGenerating = false;
+        });
+        
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error: ${e.toString()}')),
         );
@@ -273,24 +349,8 @@ class _PredictionScreenState extends State<PredictionScreen> {
     }
   }
   
-  Future<void> _fetchLatestPrediction() async {
-    try {
-      final predictionData = await _predictionService.getLatestPrediction();
-      if (predictionData.isNotEmpty) {
-        setState(() {
-          _prediction = PredictionModel.fromJson(predictionData);
-        });
-      } else {
-        setState(() {
-          _prediction = null;
-        });
-      }
-    } catch (e) {
-      setState(() {
-        _errorMessage = e.toString();
-      });
-    }
-  }
+  // This method is no longer needed as it has been replaced by the version above
+  // Keeping this comment for reference
   
   @override
   Widget build(BuildContext context) {
@@ -307,11 +367,12 @@ class _PredictionScreenState extends State<PredictionScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const SizedBox(height: 20),
+              // Header bar
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
                 decoration: const BoxDecoration(
-                  color: Color(0xFF2D2041),
+                  color: Color(0xFF31244C), // Updated purple color
                 ),
                 child: const Text(
                   'Prediction',
@@ -357,53 +418,62 @@ class _PredictionScreenState extends State<PredictionScreen> {
                                   Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: <Widget>[
-                                      Text(
-                                        'Hello, $_userName!',
-                                        style: const TextStyle(
-                                          fontFamily: 'Montaga',
-                                          fontSize: 24,
-                                          fontWeight: FontWeight.bold,
-                                          color: Color(0xFF2D2041),
-                                        ),
-                                      ),
-                                      const SizedBox(height: 4),
                                       const Text(
-                                        'Here\'s your sleep prediction',
+                                        'Hi!,',
                                         style: TextStyle(
                                           fontFamily: 'Montaga',
-                                          fontSize: 14,
-                                          color: Colors.grey,
+                                          fontSize: 28,
+                                          fontWeight: FontWeight.bold,
+                                          color: Color(0xFF31244C),
+                                        ),
+                                      ),
+                                      Text(
+                                        '$_userName',
+                                        style: const TextStyle(
+                                          fontFamily: 'Montaga',
+                                          fontSize: 28,
+                                          fontWeight: FontWeight.bold,
+                                          color: Color(0xFF31244C),
                                         ),
                                       ),
                                     ],
                                   ),
                                   const Spacer(),
                                   Container(
-                                    width: 66,
-                                    height: 68,
-                                    decoration: BoxDecoration(
+                                    width: 80,
+                                    height: 80,
+                                    decoration: const BoxDecoration(
                                       shape: BoxShape.circle,
-                                      border: Border.all(
-                                        color: const Color(0xFF2D2041),
-                                        width: 2,
-                                      ),
-                                      color: Colors.white,
+                                      color: Color(0xFFEFEFEF),
                                     ),
-                                    child: const Icon(
-                                      Icons.person,
-                                      color: Color(0xFF2D2041),
-                                      size: 40,
-                                    ),
+                                    child: _user?.profileImageUrl != null && _user!.profileImageUrl!.isNotEmpty
+                                      ? ClipOval(
+                                          child: Image.network(
+                                            _user!.profileImageUrl!,
+                                            fit: BoxFit.cover,
+                                            errorBuilder: (context, error, stackTrace) => const Icon(
+                                              Icons.person,
+                                              size: 45,
+                                              color: Color(0xFF65558F),
+                                            ),
+                                          ),
+                                        )
+                                      : const Icon(
+                                          Icons.person,
+                                          size: 35,
+                                          color: Color(0xFF65558F),
+                                        ),
                                   ),
                                 ],
                               ),
                               const SizedBox(height: 24),
+                              // Prediction box
                               Container(
                                 width: double.infinity,
-                                padding: const EdgeInsets.all(16),
+                                padding: const EdgeInsets.all(20),
                                 decoration: BoxDecoration(
-                                  color: const Color(0xFF2D2041),
-                                  borderRadius: BorderRadius.circular(8),
+                                  color: const Color(0xFF31244C),
+                                  borderRadius: BorderRadius.circular(12),
                                 ),
                                 child: _prediction == null
                                     ? const Text(
@@ -415,83 +485,95 @@ class _PredictionScreenState extends State<PredictionScreen> {
                                           height: 1.7,
                                         ),
                                       )
-                                    : Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: <Widget>[
-                                          Text(
-                                            "Sleep Score: ${(_prediction!.predictionScore * 100).toStringAsFixed(1)}%",
-                                            style: const TextStyle(
-                                              fontFamily: 'Montaga',
-                                              fontSize: 18,
-                                              fontWeight: FontWeight.bold,
-                                              color: Colors.white,
-                                            ),
-                                          ),
-                                          const SizedBox(height: 8),
-                                          Text(
-                                            "We've analyzed your sleep data and found that you might experience around ${_prediction!.predictedInterruptionCount} interruptions tonight. "
-                                            "${_prediction!.contributingFactors?.isNotEmpty == true ? 'Key factors affecting your sleep include: ${_formatContributingFactors(_prediction!.contributingFactors!)}.' : ''}",
-                                            style: const TextStyle(
-                                              fontFamily: 'Montaga',
-                                              fontSize: 16,
-                                              color: Colors.white,
-                                              height: 1.7,
-                                            ),
-                                          ),
-                                        ],
+                                    : Text(
+                                        "We've analyzed your sleep data and found several disruptions. You're averaging only 6 hours of sleep on weekdays (below the recommended 7-9 hours), with night awakenings and device use (blue light exposure) affecting your restorative sleep. Consistent but limited dietary variety, high temperatures (44°C), and loud noise levels (80 dB) further impact your sleep quality.",
+                                        style: const TextStyle(
+                                          fontFamily: 'Montaga',
+                                          fontSize: 16,
+                                          color: Colors.white,
+                                          height: 1.7,
+                                        ),
                                       ),
                               ),
-                              const SizedBox(height: 20),
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 16),
-                                child: Column(
-                                  children: <Widget>[
-                                    SizedBox(
-                                      width: double.infinity,
-                                      child: ElevatedButton(
-                                        onPressed: _isGenerating ? null : _makePredictionWithUserData,
-                                        style: ElevatedButton.styleFrom(
-                                          backgroundColor: Theme.of(context).primaryColor,
-                                          padding: const EdgeInsets.symmetric(vertical: 16),
-                                          shape: RoundedRectangleBorder(
-                                            borderRadius: BorderRadius.circular(25),
-                                          ),
+                              const SizedBox(height: 30),
+                              // Additional content can go here
+                              const Padding(
+                                padding: EdgeInsets.symmetric(vertical: 20),
+                                child: Divider(height: 0,color: Colors.transparent,),
+                              ),
+                              // Spacer to push buttons to bottom
+                              // const SizedBox(height: 80),
+                              // Space for content separation
+                              // const SizedBox(height: 16),
+                              // View prediction as graph button
+                              Center(
+                                child: SizedBox(
+                                  width: MediaQuery.of(context).size.width * 0.7,
+                                  child: ElevatedButton(
+                                    onPressed: () {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (context) => const PredictionGraphScreen(),
                                         ),
-                                        child: _isGenerating
-                                            ? const SizedBox(
-                                                height: 20,
-                                                width: 20,
-                                                child: CircularProgressIndicator(
-                                                  strokeWidth: 2,
-                                                  color: Colors.white,
-                                                ),
-                                              )
-                                            : const Text(
-                                                'Make AI Prediction',
-                                                style: TextStyle(fontSize: 16),
-                                              ),
+                                      );
+                                    },
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: const Color(0xFF65558F),
+                                      padding: const EdgeInsets.symmetric(vertical: 16),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(30),
+                                      ),
+                                      elevation: 3,
+                                    ),
+                                    child: const Text(
+                                      'View prediction as graph',
+                                      style: TextStyle(
+                                        fontFamily: 'Montaga',
+                                        fontSize: 16,
+                                        color: Colors.white,
                                       ),
                                     ),
-                                    const SizedBox(height: 10),
-                                    TextButton(
-                                      onPressed: _isGenerating ? null : _generatePrediction,
-                                      child: const Text('Quick Prediction from History'),
-                                    ),
-                                    const SizedBox(height: 10),
-                                    TextButton(
-                                      onPressed: () {
-                                        Navigator.push(
-                                          context,
-                                          MaterialPageRoute(
-                                            builder: (context) => const RecommendationScreen(),
-                                          ),
-                                        );
-                                      },
-                                      child: const Text('View Detailed Recommendations'),
-                                    ),
-                                  ],
+                                  ),
                                 ),
                               ),
+                              const SizedBox(height: 16),
+                              // View recommendation button
+                              Center(
+                                child: SizedBox(
+                                  width: MediaQuery.of(context).size.width * 0.7,
+                                  child: ElevatedButton(
+                                    onPressed: _prediction == null ? null : () {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (context) => RecommendationScreen(
+                                            predictionData: _prediction?.toJson(),
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: const Color(0xFF65558F),
+                                      padding: const EdgeInsets.symmetric(vertical: 16),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(30),
+                                      ),
+                                      elevation: 3,
+                                      disabledBackgroundColor: Colors.grey.shade400,
+                                    ),
+                                    child: const Text(
+                                      'View Recommendation',
+                                      style: TextStyle(
+                                        fontFamily: 'Montaga',
+                                        fontSize: 16,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 20),
                             ],
                           ),
               ),

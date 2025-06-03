@@ -12,6 +12,7 @@ import json
 import datetime
 import logging
 from typing import Dict, List, Any, Tuple, Union
+from sleep_prediction_service import SleepPredictionService
 
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "*"}})
@@ -29,11 +30,22 @@ MODEL_PATH = os.path.join(os.path.dirname(__file__), 'sleep_model.pkl')
 # These will be overridden when loading the model but defined here as fallback
 NUMERICAL_FEATURES = [
     'Age', 'Sleep Duration', 'Physical Activity Level', 
-    'Heart Rate', 'Daily Steps', 'Stress Level'
+    'Heart Rate', 'Daily Steps', 'Stress Level',
+    'Weekday Bedtime Hour', 'Weekday Bedtime Minute', 'Weekday Wake-up Hour', 'Weekday Wake-up Minute',
+    'Weekend Bedtime Hour', 'Weekend Bedtime Minute', 'Weekend Wake-up Hour', 'Weekend Wake-up Minute',
+    'Awakenings During Night', 'Rate Sleep Quality', 'How Relaxed Before Sleep',
+    'Breakfast Time Hour', 'Breakfast Time Minute', 'Breakfast Portion Size',
+    'Lunch Time Hour', 'Lunch Time Minute', 'Lunch Portion Size',
+    'Dinner Time Hour', 'Dinner Time Minute', 'Dinner Portion Size',
+    'No. of Meals Per Day',
+    'Light Intensity', 'Temperature'
 ]
 
 CATEGORICAL_FEATURES = [
-    'Gender', 'BMI Category'
+    'Gender', 'BMI Category',
+    'Use Electronic Devices Before Bed', 'Take Breakfast', 'Breakfast Food Type',
+    'Do Lunch', 'Lunch Food Type', 'Have Dinner', 'Dinner Food Type',
+    'Sound Exposure'
 ]
 
 ALL_FEATURES = NUMERICAL_FEATURES + CATEGORICAL_FEATURES
@@ -115,8 +127,45 @@ def preprocess_input(data: Dict[str, Any]) -> Dict[str, Any]:
         'Heart Rate': 'Heart Rate',
         'Daily Steps': 'Daily Steps',
         'Stress Level': 'Stress Level',
+
+        # Sleep Patterns
+        'weekdayBedtimeHour': 'Weekday Bedtime Hour',
+        'weekdayBedtimeMinute': 'Weekday Bedtime Minute',
+        'weekdayWakeUpHour': 'Weekday Wake-up Hour',
+        'weekdayWakeUpMinute': 'Weekday Wake-up Minute',
+        'weekendBedtimeHour': 'Weekend Bedtime Hour',
+        'weekendBedtimeMinute': 'Weekend Bedtime Minute',
+        'weekendWakeUpHour': 'Weekend Wake-up Hour',
+        'weekendWakeUpMinute': 'Weekend Wake-up Minute',
+        'awakeningsDuringNight': 'Awakenings During Night',
+        'rateSleepQuality': 'Rate Sleep Quality',
+        'useElectronicDevicesBeforeBed': 'Use Electronic Devices Before Bed',
+        'howRelaxedBeforeSleep': 'How Relaxed Before Sleep',
+
+        # Dietary Habits
+        'takeBreakfast': 'Take Breakfast',
+        'breakfastTimeHour': 'Breakfast Time Hour',
+        'breakfastTimeMinute': 'Breakfast Time Minute',
+        'breakfastFoodType': 'Breakfast Food Type',
+        'breakfastPortionSize': 'Breakfast Portion Size',
+        'doLunch': 'Do Lunch',
+        'lunchTimeHour': 'Lunch Time Hour',
+        'lunchTimeMinute': 'Lunch Time Minute',
+        'lunchFoodType': 'Lunch Food Type',
+        'lunchPortionSize': 'Lunch Portion Size',
+        'haveDinner': 'Have Dinner',
+        'dinnerTimeHour': 'Dinner Time Hour',
+        'dinnerTimeMinute': 'Dinner Time Minute',
+        'dinnerFoodType': 'Dinner Food Type',
+        'dinnerPortionSize': 'Dinner Portion Size',
+        'noOfMealsPerDay': 'No. of Meals Per Day',
+
+        # Environmental Factors
+        'lightIntensity': 'Light Intensity',
+        'temperature': 'Temperature',
+        'soundExposure': 'Sound Exposure',
         
-        # Common alternate field names
+        # Common alternate field names (existing ones)
         'age': 'Age',
         'gender': 'Gender',
         'bmi_category': 'BMI Category',
@@ -151,6 +200,43 @@ def preprocess_input(data: Dict[str, Any]) -> Dict[str, Any]:
                 processed_data[feature] = 7000  # Default steps
             elif feature == 'Stress Level':
                 processed_data[feature] = 5  # Default stress (1-10)
+            
+            # Sleep Patterns Defaults
+            elif feature == 'Weekday Bedtime Hour': processed_data[feature] = 22
+            elif feature == 'Weekday Bedtime Minute': processed_data[feature] = 0
+            elif feature == 'Weekday Wake-up Hour': processed_data[feature] = 7
+            elif feature == 'Weekday Wake-up Minute': processed_data[feature] = 0
+            elif feature == 'Weekend Bedtime Hour': processed_data[feature] = 23
+            elif feature == 'Weekend Bedtime Minute': processed_data[feature] = 0
+            elif feature == 'Weekend Wake-up Hour': processed_data[feature] = 9
+            elif feature == 'Weekend Wake-up Minute': processed_data[feature] = 0
+            elif feature == 'Awakenings During Night': processed_data[feature] = 1
+            elif feature == 'Rate Sleep Quality': processed_data[feature] = 3
+            elif feature == 'Use Electronic Devices Before Bed': processed_data[feature] = False
+            elif feature == 'How Relaxed Before Sleep': processed_data[feature] = 3
+
+            # Dietary Habits Defaults
+            elif feature == 'Take Breakfast': processed_data[feature] = True
+            elif feature == 'Breakfast Time Hour': processed_data[feature] = 8
+            elif feature == 'Breakfast Time Minute': processed_data[feature] = 0
+            elif feature == 'Breakfast Food Type': processed_data[feature] = 'Proteins'
+            elif feature == 'Breakfast Portion Size': processed_data[feature] = 300
+            elif feature == 'Do Lunch': processed_data[feature] = True
+            elif feature == 'Lunch Time Hour': processed_data[feature] = 13
+            elif feature == 'Lunch Time Minute': processed_data[feature] = 0
+            elif feature == 'Lunch Food Type': processed_data[feature] = 'Carbohydrates'
+            elif feature == 'Lunch Portion Size': processed_data[feature] = 400
+            elif feature == 'Have Dinner': processed_data[feature] = True
+            elif feature == 'Dinner Time Hour': processed_data[feature] = 20
+            elif feature == 'Dinner Time Minute': processed_data[feature] = 0
+            elif feature == 'Dinner Food Type': processed_data[feature] = 'Proteins'
+            elif feature == 'Dinner Portion Size': processed_data[feature] = 400
+            elif feature == 'No. of Meals Per Day': processed_data[feature] = 3
+
+            # Environmental Factors Defaults
+            elif feature == 'Light Intensity': processed_data[feature] = 300
+            elif feature == 'Temperature': processed_data[feature] = 22
+            elif feature == 'Sound Exposure': processed_data[feature] = 'Moderate (30-60 dB)'
     
     logger.info(f"Processed input: {processed_data}")
     return processed_data
@@ -235,12 +321,72 @@ model = initialize_model_with_sample_data()
 def health_check():
     return jsonify({'status': 'healthy', 'timestamp': datetime.datetime.now().isoformat()})
 
+def generate_sleep_analysis(features, prediction_score, user_name, user_age, user_gender):
+    """Generate detailed sleep analysis based on user data and prediction score"""
+    analysis = []
+    
+    # Personalized greeting with name
+    analysis.append(f"Hello {user_name}! Here's your personalized sleep analysis:")
+    analysis.append("="*50)
+    
+    # Age and gender specific considerations
+    age = features.get('Age', user_age)
+    gender = features.get('Gender', user_gender).lower()
+    
+    # Basic sleep duration analysis with age and gender context
+    sleep_duration = features.get('Sleep Duration', 0)
+    if age >= 18 and age <= 64:
+        if sleep_duration < 7:
+            analysis.append(f"At {age} years old, you're getting {sleep_duration:.1f} hours of sleep, which is below the recommended 7-9 hours for adults.")
+        elif sleep_duration > 9:
+            analysis.append(f"At {age} years old, you're getting {sleep_duration:.1f} hours of sleep, which is more than the recommended amount for adults.")
+        else:
+            analysis.append(f"Your sleep duration of {sleep_duration:.1f} hours is within the recommended range for adults.")
+    else:
+        analysis.append(f"Your current sleep duration is {sleep_duration:.1f} hours.")
+    
+    # Gender-specific considerations
+    if gender == 'female':
+        analysis.append("As a woman, you might experience sleep pattern variations due to hormonal changes. "
+                      "This is normal but can affect sleep quality.")
+    
+    # Sleep quality analysis with personalized tips
+    sleep_quality = features.get('Rate Sleep Quality', 3)
+    if sleep_quality < 3:
+        analysis.append(f"Your reported sleep quality is below average. Let's work on improving this, {user_name}!")
+    elif sleep_quality > 3:
+        analysis.append("Great job! Your reported sleep quality is above average.")
+    
+    # Environmental factors with personalized recommendations
+    if features.get('Use Electronic Devices Before Bed', False):
+        analysis.append(f"{user_name}, using electronic devices before bed is affecting your sleep quality due to blue light exposure. "
+                      "Try using blue light filters or avoiding screens 1 hour before bed.")
+    
+    sound_level = features.get('Sound Exposure', '')
+    if 'Loud' in sound_level:
+        analysis.append("The noise levels in your environment might be disrupting your sleep. Consider using earplugs or white noise.")
+    
+    # Dietary factors with timing considerations
+    dinner_time_hour = features.get('Dinner Time Hour', 20)
+    if dinner_time_hour >= 21:
+        analysis.append(f"{user_name}, eating dinner at {dinner_time_hour}:00 is quite late and might be affecting your sleep quality. "
+                      "Try to have dinner at least 2-3 hours before bedtime.")
+    
+    # Age-specific recommendations
+    if age > 50:
+        analysis.append("As we get older, sleep patterns naturally change. You might find it helpful to maintain a consistent sleep schedule.")
+    
+    return analysis
+
 @app.route('/predict', methods=['POST'])
 def predict():
     try:
         # Get data from request
         data = request.get_json()
         logger.info(f"Received prediction request with data: {data}")
+        
+        # Get user's name if provided
+        user_name = data.get('userName', 'there')
         
         # Extract sleep data, environmental data, and dietary data from the request
         sleep_data = data.get('sleepData', {})
@@ -257,23 +403,29 @@ def predict():
         processed_data = preprocess_input(combined_data)
         
         # Create a dataframe from the processed features
-        input_df = pd.DataFrame([processed_data])
+        input_df = pd.DataFrame([processed_data], columns=ALL_FEATURES)
         
-        # Make prediction with the model
+        # Generate predictions
         try:
-            # For binary classification (probability of sleep disorder)
-            prediction_proba = model.predict_proba(input_df)
-            sleep_disorder_prob = prediction_proba[0][1]  # Probability of class 1 (having a sleep disorder)
-            logger.info(f"Prediction probability: {sleep_disorder_prob}")
+            # Convert processed data to DataFrame with correct feature order
+            input_df = pd.DataFrame([processed_data], columns=ALL_FEATURES)
             
-            # Calculate sleep quality score (inverse of disorder probability)
-            sleep_quality_score = 10 * (1 - sleep_disorder_prob)
+            # Make prediction with the model
+            prediction_proba = model.predict_proba(input_df)
+            # Get probability of good sleep (assuming class 0 is good sleep)
+            good_sleep_prob = prediction_proba[0][0] if len(prediction_proba[0]) > 1 else 0.7
+            sleep_disorder_prob = 1 - good_sleep_prob
+            logger.info(f"Good sleep probability: {good_sleep_prob}, Disorder probability: {sleep_disorder_prob}")
+            
+            # Calculate sleep quality score (0-10 scale)
+            sleep_quality_score = good_sleep_prob * 10
+            
         except Exception as model_error:
             logger.error(f"Error during model prediction: {str(model_error)}")
             # Fallback to a simple prediction if probabilistic prediction fails
-            prediction = model.predict(input_df)[0]
-            sleep_quality_score = 5.0 if prediction else 8.0
-            sleep_disorder_prob = 0.5 if prediction else 0.2
+            good_sleep_prob = 0.7
+            sleep_disorder_prob = 0.3
+            sleep_quality_score = 7.0
         
         # Calculate contributing factors
         contributing_factors = calculate_contributing_factors(processed_data)
@@ -302,16 +454,119 @@ def predict():
                     "probability": round(0.4 + (sleep_disorder_prob * 0.5), 2)  # Scale probability by disorder probability
                 })
         
-        # Prepare response
+        # Get user details
+        user_age = int(processed_data.get('Age', 30))  # Default to 30 if not provided
+        user_gender = processed_data.get('Gender', 'User')  # Default to 'User' if not provided
+        
+        # Generate detailed analysis with personalized insights
+        sleep_analysis = generate_sleep_analysis(processed_data, good_sleep_prob, user_name, user_age, user_gender)
+        
+        # Format the analysis with proper spacing
+        analysis_text = "\n\n".join(sleep_analysis)
+        
+        # Add prediction summary with emoji for better readability
+        score = round(good_sleep_prob * 10, 1)
+        if score >= 8:
+            emoji = "😊"
+            summary = "Excellent!"
+        elif score >= 6:
+            emoji = "🙂"
+            summary = "Good job!"
+        else:
+            emoji = "😴"
+            summary = "Let's improve this!"
+            
+        prediction_summary = f"\n\n📊 Sleep Quality Score: {score}/10 {emoji}\n{summary}"
+        
+        # Calculate sleep duration in hours and minutes
+        def format_duration(hours, minutes):
+            if hours > 0 and minutes > 0:
+                return f"{hours} hours and {minutes} minutes"
+            elif hours > 0:
+                return f"{hours} hours"
+            else:
+                return f"{minutes} minutes"
+        
+        # Calculate sleep duration from input data
+        sleep_duration = processed_data.get('Sleep Duration', 7)  # Default to 7 hours if not provided
+        
+        # If we need to calculate it from bed/wake times
+        if 'weekdayBedtimeHour' in processed_data and 'weekdayWakeUpHour' in processed_data:
+            bedtime = datetime.time(
+                hour=processed_data.get('weekdayBedtimeHour', 23),
+                minute=processed_data.get('weekdayBedtimeMinute', 0)
+            )
+            wakeup = datetime.time(
+                hour=processed_data.get('weekdayWakeUpHour', 7),
+                minute=processed_data.get('weekdayWakeUpMinute', 0)
+            )
+            
+            bedtime_dt = datetime.datetime.combine(datetime.date.today(), bedtime)
+            wakeup_dt = datetime.datetime.combine(
+                datetime.date.today() + datetime.timedelta(days=1) 
+                if bedtime > wakeup 
+                else datetime.date.today(), 
+                wakeup
+            )
+            sleep_duration = (wakeup_dt - bedtime_dt).total_seconds() / 3600
+        
+        # Get user data
+        user_name = data.get('userName', 'there')
+        sleep_duration = processed_data.get('Sleep Duration', 6.5)
+        awakenings = processed_data.get('awakeningsDuringNight', 0)
+        stress_level = processed_data.get('Stress Level', 5)
+        temperature = processed_data.get('temperature', 22)
+        sound_level = processed_data.get('soundExposure', '').lower()
+        
+        # Generate prediction message
+        score = round(good_sleep_prob * 10, 1)
+        if score >= 8:
+            prediction_message = "😊 Excellent! Your sleep quality is great!"
+        elif score >= 6:
+            prediction_message = "🙂 Good! Your sleep quality is decent but can be improved."
+        else:
+            prediction_message = "😴 Your sleep quality needs attention. Let's work on it!"
+        
+        # Generate detailed analysis
+        analysis_parts = []
+        
+        # Sleep duration analysis
+        if sleep_duration < 7:
+            analysis_parts.append(f"You're averaging only {sleep_duration} hours of sleep on weekdays (slightly below the recommended 7-9 hours).")
+        else:
+            analysis_parts.append(f"Your sleep duration of {sleep_duration} hours is within the healthy range.")
+        
+        # Sleep quality factors
+        if awakenings > 1:
+            analysis_parts.append(f"You experience {awakenings} awakenings per night, which can disrupt your sleep cycles.")
+            
+        if processed_data.get('useElectronicDevicesBeforeBed', False):
+            analysis_parts.append("Using electronic devices before bed may be affecting your ability to fall asleep.")
+            
+        if stress_level > 6:
+            analysis_parts.append(f"Your stress level is {stress_level}/10, which might be impacting your sleep quality.")
+        
+        # Environmental factors
+        if temperature > 22:
+            analysis_parts.append(f"Your room temperature of {temperature}°C is slightly above the ideal range of 16-20°C for optimal sleep.")
+            
+        if 'moderate' in sound_level or 'loud' in sound_level:
+            analysis_parts.append("The noise levels in your environment might be affecting your sleep quality.")
+        
+        # Join analysis parts
+        detailed_analysis = "We've analyzed your sleep data and found several factors that may affect your rest. " + " ".join(analysis_parts)
+        
+        # Prepare response with all data
         response = {
-            "predictionScore": round(sleep_quality_score, 2),
-            "normalizedScore": round(sleep_quality_score / 10, 2),  # Normalize to 0-1
-            "sleepDisorderProbability": round(sleep_disorder_prob, 2),
-            "predictedInterruptionCount": len(interruption_windows),
-            "predictedInterruptionWindows": interruption_windows,
-            "contributingFactors": contributing_factors,
-            "recommendations": recommendations,
-            "timestamp": datetime.datetime.now().isoformat()
+            'prediction': prediction_message,
+            'detailedAnalysis': detailed_analysis,
+            'sleepDisorderProbability': round(sleep_disorder_prob, 2),
+            'recommendations': generate_recommendations(processed_data, contributing_factors),
+            'predictionScore': round(score, 1),
+            'normalizedScore': round(score / 10, 2),
+            'predictedInterruptionCount': len(interruption_windows),
+            'predictedInterruptionWindows': interruption_windows,
+            'timestamp': datetime.datetime.now().isoformat()
         }
         
         logger.info(f"Returning prediction response: {json.dumps(response)}")
@@ -401,64 +656,87 @@ def calculate_contributing_factors(features):
 def generate_recommendations(features, factors):
     """Generate personalized recommendations based on contributing factors"""
     recommendations = []
+    user_name = features.get('userName', 'there')
     
     # Sort factors by contribution value (highest first)
     sorted_factors = sorted(factors.items(), key=lambda x: x[1], reverse=True)
     
-    # Generate targeted recommendations for the top contributing factors
-    for factor_name, factor_value in sorted_factors[:3]:  # Focus on top 3 factors
-        if factor_value >= 0.3:  # Only consider significant factors
-            if factor_name == 'age':
-                recommendations.append("As we age, sleep quality naturally changes. Consider discussing age-related sleep changes with your healthcare provider.")
-            
-            elif factor_name == 'physical_activity':
-                recommendations.append("Aim for 30-60 minutes of moderate exercise daily, but try to complete your workout at least 2-3 hours before bedtime.")
-            
-            elif factor_name == 'stress_level':
-                recommendations.append("Practice stress reduction techniques like meditation, deep breathing, or progressive muscle relaxation before bedtime.")
-            
-            elif factor_name == 'sleep_duration':
-                if 'Sleep Duration' in features:
-                    if features['Sleep Duration'] < 7:
-                        recommendations.append("You may not be getting enough sleep. Aim for 7-9 hours of sleep per night for optimal health.")
-                    elif features['Sleep Duration'] > 9:
-                        recommendations.append("Too much sleep can sometimes be as problematic as too little. Try to maintain a consistent 7-9 hour sleep schedule.")
-                else:
-                    recommendations.append("Maintain a consistent sleep schedule with 7-9 hours of sleep per night.")
-            
-            elif factor_name == 'heart_rate':
-                recommendations.append("Your heart rate may be affecting your sleep quality. Regular cardiovascular exercise and relaxation techniques can help regulate heart rate.")
-            
-            elif factor_name == 'daily_steps':
-                recommendations.append("Try to increase your daily physical activity to at least 7,000-10,000 steps per day for better sleep quality.")
-            
-            elif factor_name == 'bmi':
-                recommendations.append("Your BMI category may be affecting your sleep. Consider discussing weight management strategies with your healthcare provider.")
-            
-            elif factor_name == 'caffeine_intake':
-                recommendations.append("Limit caffeine consumption, especially after noon, as it can remain in your system for up to 8 hours.")
-            
-            elif factor_name == 'screen_time':
-                recommendations.append("Reduce screen time at least 1-2 hours before bed and use blue light filters on devices when using them in the evening.")
+    # Generate targeted recommendations based on contributing factors
+    for factor_name, factor_value in sorted_factors:
+        if factor_value >= 0.2:
+            if factor_name == 'sleep_duration' and features.get('Sleep Duration', 7) < 7:
+                recommendations.append("Sleep at least 7 hours on weekdays.")
+            elif factor_name in ['screen_time', 'electronic_devices'] and features.get('useElectronicDevicesBeforeBed', False):
+                recommendations.append("Reduce device usage 1 hour before bed to minimize blue light exposure.")
+            elif factor_name == 'diet' and features.get('dietaryVariety', 0) < 3:
+                recommendations.append("Add more variety to your meals with fruits, vegetables, and whole grains.")
+            elif factor_name == 'temperature' and features.get('temperature', 0) > 22:
+                recommendations.append("Keep your bedroom cooler (16-20°C) for better sleep quality.")
+            elif factor_name == 'noise' and 'moderate' in str(features.get('soundExposure', '')).lower():
+                recommendations.append("Use earplugs or white noise to block out disruptive sounds.")
+            elif factor_name == 'stress' and features.get('Stress Level', 5) > 6:
+                recommendations.append("Practice relaxation techniques like deep breathing or meditation before bed.")
+            elif factor_name in ['caffeine', 'caffeine_intake']:
+                recommendations.append("Avoid caffeine after 2 PM to prevent sleep disturbances.")
     
-    # Add general recommendations if we don't have enough specific ones
-    if len(recommendations) < 2:
-        general_recommendations = [
-            "Maintain a consistent sleep schedule, even on weekends.",
-            "Create a relaxing bedtime routine to signal your body it's time to sleep.",
-            "Ensure your bedroom is dark, quiet, and at a comfortable temperature (around 65°F or 18°C).",
-            "Avoid large meals, alcohol, and nicotine close to bedtime.",
-            "Exercise regularly, but not too close to bedtime."
-        ]
+    # Add general recommendations if we need more
+    general_recommendations = [
+        "Maintain a consistent sleep schedule, even on weekends.",
+        "Create a relaxing bedtime routine to signal your body it's time to sleep.",
+        "Avoid large meals, alcohol, and nicotine close to bedtime.",
+        "Get regular exercise, but finish at least 3 hours before bed.",
+        "Make sure your bedroom is dark, quiet, and at a comfortable temperature.",
+        "Expose yourself to natural light during the day to regulate your sleep-wake cycle.",
+        "Consider using blackout curtains or a sleep mask if your room isn't dark enough.",
+        "If you can't sleep, get out of bed and do something relaxing until you feel sleepy.",
+        "Limit daytime naps to 20-30 minutes to avoid disrupting nighttime sleep.",
+        "Try to resolve worries or concerns before bedtime by making a to-do list for the next day."
+    ]
+    
+    # Add general recommendations until we have 5-7 total
+    for rec in general_recommendations:
+        if rec not in recommendations:
+            recommendations.append(rec)
+            if len(recommendations) >= 7:  # Aim for 5-7 recommendations
+                break
+    
+    # Format the final recommendations message
+    if recommendations:
+        message = f"Dear {user_name}, you can follow these recommendations for better sleep experience!\n\n"
+        message += "\n".join([f"• {rec}" for rec in recommendations])
+        message += "\n\nSmall adjustments can greatly improve your sleep quality!"
+        return message
+    
+    return f"Dear {user_name}, focus on maintaining good sleep hygiene. Keep a consistent sleep schedule and create a relaxing bedtime routine for better sleep!"
+
+@app.route('/personalized_prediction', methods=['POST'])
+def personalized_prediction():
+    """
+    Endpoint for personalized sleep prediction with detailed analysis and recommendations.
+    Follows the format requested in the UI design.
+    """
+    try:
+        # Get data from request
+        data = request.get_json()
+        logger.info(f"Received personalized prediction request with data: {data}")
         
-        # Add general recommendations until we have at least 3 total
-        for rec in general_recommendations:
-            if rec not in recommendations:
-                recommendations.append(rec)
-                if len(recommendations) >= 3:
-                    break
+        # Initialize the sleep prediction service
+        prediction_service = SleepPredictionService()
+        
+        # Generate the prediction and analysis
+        response = prediction_service.analyze_sleep_data(data)
+        
+        logger.info(f"Returning personalized prediction response")
+        return jsonify(response)
     
-    return recommendations
+    except Exception as e:
+        logger.error(f"Error in personalized_prediction endpoint: {str(e)}", exc_info=True)
+        return jsonify({
+            "error": str(e),
+            "prediction": "😴 We couldn't analyze your sleep data properly.",
+            "detailedAnalysis": "There was an error processing your data. Please check your inputs and try again.",
+            "recommendations": "Please ensure all required fields are filled correctly."
+        }), 500
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))

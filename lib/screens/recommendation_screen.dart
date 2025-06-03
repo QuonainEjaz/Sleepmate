@@ -6,9 +6,12 @@ import 'package:flutter/services.dart';
 import '../services/prediction_service.dart';
 import '../services/auth_service.dart';
 import '../widgets/loading_indicator.dart';
+import '../models/user_model.dart';
 
 class RecommendationScreen extends StatefulWidget {
-  const RecommendationScreen({super.key});
+  final Map<String, dynamic>? predictionData;
+  
+  const RecommendationScreen({super.key, this.predictionData});
 
   @override
   State<RecommendationScreen> createState() => _RecommendationScreenState();
@@ -23,6 +26,7 @@ class _RecommendationScreenState extends State<RecommendationScreen> {
   List<String> _recommendations = [];
   Map<String, dynamic> _contributingFactors = {};
   String _userName = 'User';
+  UserModel? _userProfile;
   
   @override
   void initState() {
@@ -37,25 +41,46 @@ class _RecommendationScreenState extends State<RecommendationScreen> {
         _errorMessage = null;
       });
       
-      // Load user profile for the name
-      final userProfile = await _authService.getCurrentUser();
-      if (userProfile != null) {
+      // Load user profile for the name and profile image
+      final userProfile = await _authService.getCurrentUserModel();
+      if (userProfile != null && mounted) {
         setState(() {
           _userName = userProfile.name ?? 'User';
+          _userProfile = userProfile;
         });
       }
       
-          // Load recommendations
-      final recommendations = await _predictionService.getRecommendations();
-      setState(() {
-        _recommendations = recommendations;
-        _isLoading = false;
-      });
+      // If we have prediction data passed from prediction screen, use it
+      if (widget.predictionData != null) {
+        // Extract recommendations from the prediction data
+        final recommendations = widget.predictionData!['recommendations'] as List<dynamic>? ?? [];
+        if (mounted) {
+          setState(() {
+            _recommendations = recommendations.cast<String>();
+            // If there are contributing factors in the prediction data, extract them
+            if (widget.predictionData!.containsKey('contributingFactors')) {
+              _contributingFactors = widget.predictionData!['contributingFactors'] as Map<String, dynamic>? ?? {};
+            }
+            _isLoading = false;
+          });
+        }
+      } else {
+        // Otherwise, load recommendations from the API
+        final recommendations = await _predictionService.getRecommendations();
+        if (mounted) {
+          setState(() {
+            _recommendations = recommendations;
+            _isLoading = false;
+          });
+        }
+      }
     } catch (e) {
-      setState(() {
-        _errorMessage = 'Failed to load recommendations: ${e.toString()}';
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _errorMessage = 'Failed to load recommendations: ${e.toString()}';
+          _isLoading = false;
+        });
+      }
     }
   }
   
@@ -70,10 +95,10 @@ class _RecommendationScreenState extends State<RecommendationScreen> {
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
-        child: Column(
+        child: Column( // Main Column for the screen
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const SizedBox(height: 20),
+            // Header
             Container(
               width: double.infinity,
               padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
@@ -91,167 +116,181 @@ class _RecommendationScreenState extends State<RecommendationScreen> {
                 ),
               ),
             ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 35, vertical: 30),
+            Expanded(
               child: _isLoading
-                ? const Center(child: LoadingIndicator())
-                : _errorMessage != null
-                  ? Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(
-                            _errorMessage!,
-                            style: const TextStyle(
-                              color: Colors.red,
-                              fontSize: 16,
+                  ? const Center(child: LoadingIndicator())
+                  : _errorMessage != null
+                      ? Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text(
+                                _errorMessage!, // Not const
+                                style: const TextStyle(
+                                  color: Colors.red,
+                                  fontSize: 16,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                              const SizedBox(height: 16),
+                              ElevatedButton(
+                                onPressed: _loadData,
+                                child: const Text('Try Again'),
+                              ),
+                            ],
+                          ),
+                        )
+                      : Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 35, vertical: 30),
+                          child: SingleChildScrollView(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                // User Greeting and Profile Icon
+                                Row(
+                                  children: [
+                                    Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        const Text(
+                                          'Hi!,',
+                                          style: TextStyle(
+                                            fontFamily: 'Montaga',
+                                            fontSize: 36,
+                                            fontWeight: FontWeight.w500,
+                                            color: Color(0xFF2D2041),
+                                          ),
+                                        ),
+                                        Text( // Not const
+                                          _userName,
+                                          style: const TextStyle(
+                                            fontFamily: 'Montaga',
+                                            fontSize: 36,
+                                            fontWeight: FontWeight.w500,
+                                            color: Color(0xFF2D2041),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const Spacer(),
+                                    Container(
+                                      width: 80,
+                                      height: 80,
+                                      decoration: const BoxDecoration(
+                                        shape: BoxShape.circle,
+                                        color: Color(0xFFEFEFEF),
+                                      ),
+                                      child: _userProfile?.profileImageUrl != null && _userProfile!.profileImageUrl!.isNotEmpty
+                                          ? ClipOval(
+                                              child: Image.network(
+                                                _userProfile!.profileImageUrl!, // Not const
+                                                fit: BoxFit.cover,
+                                                errorBuilder: (context, error, stackTrace) => const Icon(
+                                                  Icons.person,
+                                                  color: Color(0xFF2D2041),
+                                                  size: 45,
+                                                ),
+                                              ),
+                                            )
+                                          : const Icon(
+                                              Icons.person,
+                                              color: Color(0xFF2D2041),
+                                              size: 45,
+                                            ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 24),
+                                // Recommendations Container
+                                Container(
+                                  width: double.infinity,
+                                  padding: const EdgeInsets.all(16),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF2D2041),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text( // Not const
+                                        'Dear $_userName, you can follow these recommendations for better sleep experience:',
+                                        style: const TextStyle(
+                                          fontFamily: 'Poppins',
+                                          fontSize: 14,
+                                          color: Colors.white,
+                                          height: 1.5,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 16),
+                                      if (_recommendations.isEmpty) // Not const
+                                        _buildBulletPoint('No specific recommendations available yet. Try adding more sleep data.')
+                                      else
+                                        ..._recommendations.map((recommendation) => _buildBulletPoint(recommendation)).toList(),
+                                      
+                                      if (_contributingFactors.isNotEmpty) ...[ // Not const
+                                        const SizedBox(height: 16),
+                                        const Text(
+                                          'Key factors affecting your sleep:',
+                                          style: TextStyle(
+                                            fontFamily: 'Poppins',
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 14,
+                                            color: Colors.white,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 8),
+                                        ..._formatContributingFactors().map((factor) => _buildBulletPoint(factor)).toList(),
+                                      ],
+                                      const SizedBox(height: 16),
+                                      const Text(
+                                        'Small adjustments can greatly improve your sleep quality!',
+                                        style: TextStyle(
+                                          fontFamily: 'Poppins',
+                                          fontSize: 14,
+                                          color: Colors.white,
+                                          height: 1.5,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(height: 54),
+                                // Feedback Button
+                                Center(
+                                  child: SizedBox(
+                                    width: 250,
+                                    child: ElevatedButton(
+                                      onPressed: () {
+                                        Navigator.pushNamed(context, AppConstants.sleepQualityFeedbackRoute);
+                                      },
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: const Color(0xFF5C5470),
+                                        padding: const EdgeInsets.symmetric(vertical: 16),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(25),
+                                        ),
+                                        elevation: 0,
+                                      ),
+                                      child: const Text(
+                                        'Feedback',
+                                        style: TextStyle(
+                                          fontFamily: 'Montaga',
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w600,
+                                          color: Colors.white,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ], // Closes SingleChildScrollView's Column children
                             ),
-                            textAlign: TextAlign.center,
                           ),
-                          const SizedBox(height: 16),
-                          ElevatedButton(
-                            onPressed: _loadData,
-                            child: const Text('Try Again'),
-                          ),
-                        ],
-                      ),
-                    )
-                  : Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                  Row(
-                    children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Hi!,',
-                            style: TextStyle(
-                              fontFamily: 'Montaga',
-                              fontSize: 36,
-                              fontWeight: FontWeight.w500,
-                              color: Color(0xFF2D2041),
-                            ),
-                          ),
-                          Text(
-                            _userName,
-                            style: const TextStyle(
-                              fontFamily: 'Montaga',
-                              fontSize: 36,
-                              fontWeight: FontWeight.w500,
-                              color: Color(0xFF2D2041),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const Spacer(),
-                      Container(
-                        width: 66,
-                        height: 68,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: const Color(0xFF2D2041),
-                            width: 2,
-                          ),
-                          color: Colors.white,
-                        ),
-                        child: const Icon(
-                          Icons.person,
-                          color: Color(0xFF2D2041),
-                          size: 40,
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                    ],
-                  ),
-                  const SizedBox(height: 24),
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF2D2041),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Dear ${_userName}, you can follow these recommendations for better sleep experience:',
-                          style: const TextStyle(
-                            fontFamily: 'Poppins',
-                            fontSize: 14,
-                            color: Colors.white,
-                            height: 1.5,
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        if (_recommendations.isEmpty)
-                          _buildBulletPoint('No specific recommendations available yet. Try adding more sleep data.')
-                        else
-                          ..._recommendations.map((recommendation) => _buildBulletPoint(recommendation)).toList(),
-                        
-                        if (_contributingFactors.isNotEmpty) ...[  
-                          const SizedBox(height: 16),
-                          const Text(
-                            'Key factors affecting your sleep:',
-                            style: TextStyle(
-                              fontFamily: 'Poppins',
-                              fontWeight: FontWeight.bold,
-                              fontSize: 14,
-                              color: Colors.white,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          ..._formatContributingFactors().map((factor) => _buildBulletPoint(factor)),
-                        ],
-                        const SizedBox(height: 16),
-                        const Text(
-                          'Small adjustments can greatly improve your sleep quality!',
-                          style: TextStyle(
-                            fontFamily: 'Poppins',
-                            fontSize: 14,
-                            color: Colors.white,
-                            height: 1.5,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 54),
-                  Center(
-                    child: SizedBox(
-                      width: 250,
-                      child: ElevatedButton(
-                        onPressed: () {
-                        Navigator.pushNamed(context, AppConstants.sleepQualityFeedbackRoute);
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF5C5470),
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(25),
-                        ),
-                        elevation: 0,
-                      ),
-                      child: const Text(
-                        'Feedback',
-                        style: TextStyle(
-                          fontFamily: 'Montaga',
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
+                        ), // Closes Padding
+            ), // Closes Expanded
+          ], // Closes SafeArea's Column children
         ),
-      ),
+      ), // Closes SafeArea
       bottomNavigationBar: CustomBottomNavigation(
         currentIndex: 1,
         onTap: (index) {
@@ -259,42 +298,56 @@ class _RecommendationScreenState extends State<RecommendationScreen> {
         },
       ),
       endDrawer: const CustomProfileDrawer(),
-    );
-  }
+    ); // Closes Scaffold
+  } // Closes build method
 
-  Widget _buildBulletPoint(String text) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            '• ',
-            style: TextStyle(
+Widget _buildBulletPoint(String text) {
+  return Padding(
+    padding: const EdgeInsets.only(bottom: 12),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          '• ',
+          style: TextStyle(
+            fontFamily: 'Poppins',
+            fontSize: 14,
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
+        ),
+        Expanded(
+          child: Text(
+            text,
+            style: const TextStyle(
               fontFamily: 'Poppins',
               fontSize: 14,
               color: Colors.white,
               height: 1.5,
             ),
           ),
-          Expanded(
-            child: Text(
-              text,
-              style: const TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: 14,
-                color: Colors.white,
-                height: 1.5,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
+        ),
+      ],
+    ),
+  );
   }
-  
+
   List<String> _formatContributingFactors() {
-    // Since we're not using contributing factors anymore, return an empty list
-    return <String>[];
+    final formattedFactors = <String>[];
+    
+    _contributingFactors.forEach((factor, impact) {
+      // Convert the factor from snake_case to Title Case for display
+      final readableFactor = factor
+          .split('_')
+          .map((word) => word[0].toUpperCase() + word.substring(1))
+          .join(' ');
+      
+      // Format the impact value (assuming it's a number or percentage)
+      final impactStr = impact is num ? '${impact.toStringAsFixed(1)}%' : impact.toString();
+      
+      formattedFactors.add('$readableFactor: $impactStr');
+    });
+    
+    return formattedFactors;
   }
-} 
+}

@@ -352,13 +352,31 @@ class AuthService {
         throw Exception(response['error']);
       }
       
-      final token = response['token'];
-      if (token == null) {
-        _logger.e('Registration failed: No token received');
+      // Make sure token is a string (not null)
+      final token = response['token']?.toString();
+      if (token == null || token.isEmpty) {
+        _logger.e('Registration failed: No token received or token is empty');
         throw Exception('Registration failed: Authentication token not received');
       }
       
+      _logger.d('Token received: $token');
       await _apiService.setToken(token);
+      
+      // Set the current user from the response data
+      if (response['user'] != null) {
+        _logger.d('User data in response: ${response['user']}');
+        try {
+          final user = UserModel.fromJson(response['user']);
+          _currentUser = user;
+          _authStateController.add(user);
+          _logger.i('User data set after registration: ${user.id}');
+        } catch (e) {
+          _logger.e('Error parsing user data: $e');
+          // Continue even if user parsing fails - we'll fetch it later
+        }
+      } else {
+        _logger.w('No user data in registration response');
+      }
       
       _logger.i('Registration completed successfully');
       return token;

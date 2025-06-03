@@ -696,37 +696,39 @@ class _DietaryHabitsScreenState extends State<DietaryHabitsScreen> {
                 ),
               ),
             ),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.only(top: 16, left: 24, right: 24),
-              child: ElevatedButton(
-                onPressed: () {
-                  // Build dietary data object
-                  final dietaryData = _buildDietaryData();
-                  
-                  // If in onSaveOnly mode, return data without navigation
-                  if (widget.onSaveOnly) {
-                    Navigator.of(context).pop(dietaryData);
-                    return;
-                  }
-                  
-                  // Otherwise proceed with normal navigation
-                  Navigator.pushNamed(context, AppConstants.environmentalFactorsRoute);
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF65558F),
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(25),
+            Center(
+              child: Container(
+                width: MediaQuery.of(context).size.width * 0.85,
+                padding: const EdgeInsets.only(top: 16, left: 24, right: 24),
+                child: ElevatedButton(
+                  onPressed: () {
+                    // Build dietary data object
+                    final dietaryData = _buildDietaryData();
+                    
+                    // If in onSaveOnly mode, return data without navigation
+                    if (widget.onSaveOnly) {
+                      Navigator.of(context).pop(dietaryData);
+                      return;
+                    }
+                    
+                    // Otherwise proceed with normal navigation
+                    Navigator.pushNamed(context, AppConstants.environmentalFactorsRoute);
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF65558F),
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(25),
+                    ),
+                    elevation: 0,
                   ),
-                  elevation: 0,
-                ),
-                child: Text(
-                  'Next',
-                  style: GoogleFonts.montaga(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w900,
-                    color: Colors.white,
+                  child: Text(
+                    'Next',
+                    style: GoogleFonts.montaga(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w900,
+                      color: Colors.white,
+                    ),
                   ),
                 ),
               ),

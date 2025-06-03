@@ -42,6 +42,46 @@ def get_dataset():
     daily_steps = np.clip(daily_steps, 1000, 15000)
     
     stress_level = np.random.randint(1, 11, n_samples)
+
+    # New features from Sleep Patterns screen
+    weekday_bedtime_hour = np.random.randint(21, 24, n_samples) # 9 PM to 12 AM
+    weekday_bedtime_minute = np.random.choice([0, 30], n_samples)
+    weekday_wake_up_hour = np.random.randint(6, 10, n_samples) # 6 AM to 10 AM
+    weekday_wake_up_minute = np.random.choice([0, 30], n_samples)
+    weekend_bedtime_hour = np.random.choice([22, 23, 0, 1], n_samples) # 10 PM to 1 AM
+    weekend_bedtime_minute = np.random.choice([0, 30], n_samples)
+    weekend_wake_up_hour = np.random.randint(7, 12, n_samples) # 7 AM to 12 PM
+    weekend_wake_up_minute = np.random.choice([0, 30], n_samples)
+    awakenings_during_night = np.random.randint(0, 5, n_samples)
+    rate_sleep_quality = np.random.randint(1, 6, n_samples) # 1-5 scale
+    use_electronic_devices_before_bed = np.random.choice([True, False], n_samples)
+    how_relaxed_before_sleep = np.random.randint(1, 6, n_samples) # 1-5 scale
+
+    # New features from Dietary Habits screen
+    take_breakfast = np.random.choice([True, False], n_samples)
+    breakfast_time_hour = np.random.randint(7, 10, n_samples)
+    breakfast_time_minute = np.random.choice([0, 30], n_samples)
+    breakfast_food_type = np.random.choice(['Carbohydrates', 'Proteins', 'Dairy', 'Beverage intake', 'Fruits and Vegetables'], n_samples)
+    breakfast_portion_size = np.random.uniform(200, 500, n_samples) # grams
+
+    do_lunch = np.random.choice([True, False], n_samples)
+    lunch_time_hour = np.random.randint(12, 15, n_samples)
+    lunch_time_minute = np.random.choice([0, 30], n_samples)
+    lunch_food_type = np.random.choice(['Carbohydrates', 'Proteins', 'Fats', 'Beverage intake', 'Fruits and Vegetables'], n_samples)
+    lunch_portion_size = np.random.uniform(300, 600, n_samples) # grams
+
+    have_dinner = np.random.choice([True, False], n_samples)
+    dinner_time_hour = np.random.randint(18, 22, n_samples)
+    dinner_time_minute = np.random.choice([0, 30], n_samples)
+    dinner_food_type = np.random.choice(['Carbohydrates', 'Proteins', 'Fats', 'Beverage intake', 'Fruits and Vegetables'], n_samples)
+    dinner_portion_size = np.random.uniform(300, 600, n_samples) # grams
+
+    no_of_meals_per_day = np.random.randint(2, 5, n_samples)
+
+    # New features from Environmental Factors screen
+    light_intensity = np.random.uniform(100, 1000, n_samples) # lux
+    temperature = np.random.uniform(18, 25, n_samples) # Celsius
+    sound_exposure = np.random.choice(['Quiet (<30 dB)', 'Moderate (30-60 dB)', 'Loud (>60 dB)'], n_samples)
     
     # Create dependent variable - sleep disorder
     # We'll use a probability model to generate realistic outcomes
@@ -92,7 +132,44 @@ def get_dataset():
         'Daily Steps': daily_steps,
         'Stress Level': stress_level,
         'Sleep Quality': sleep_quality,
-        'Sleep Disorder': sleep_disorder_type
+        'Sleep Disorder': sleep_disorder_type,
+
+        # Sleep Patterns
+        'Weekday Bedtime Hour': weekday_bedtime_hour,
+        'Weekday Bedtime Minute': weekday_bedtime_minute,
+        'Weekday Wake-up Hour': weekday_wake_up_hour,
+        'Weekday Wake-up Minute': weekday_wake_up_minute,
+        'Weekend Bedtime Hour': weekend_bedtime_hour,
+        'Weekend Bedtime Minute': weekend_bedtime_minute,
+        'Weekend Wake-up Hour': weekend_wake_up_hour,
+        'Weekend Wake-up Minute': weekend_wake_up_minute,
+        'Awakenings During Night': awakenings_during_night,
+        'Rate Sleep Quality': rate_sleep_quality,
+        'Use Electronic Devices Before Bed': use_electronic_devices_before_bed,
+        'How Relaxed Before Sleep': how_relaxed_before_sleep,
+
+        # Dietary Habits
+        'Take Breakfast': take_breakfast,
+        'Breakfast Time Hour': breakfast_time_hour,
+        'Breakfast Time Minute': breakfast_time_minute,
+        'Breakfast Food Type': breakfast_food_type,
+        'Breakfast Portion Size': breakfast_portion_size,
+        'Do Lunch': do_lunch,
+        'Lunch Time Hour': lunch_time_hour,
+        'Lunch Time Minute': lunch_time_minute,
+        'Lunch Food Type': lunch_food_type,
+        'Lunch Portion Size': lunch_portion_size,
+        'Have Dinner': have_dinner,
+        'Dinner Time Hour': dinner_time_hour,
+        'Dinner Time Minute': dinner_time_minute,
+        'Dinner Food Type': dinner_food_type,
+        'Dinner Portion Size': dinner_portion_size,
+        'No. of Meals Per Day': no_of_meals_per_day,
+
+        # Environmental Factors
+        'Light Intensity': light_intensity,
+        'Temperature': temperature,
+        'Sound Exposure': sound_exposure
     })
     
     return data
@@ -105,10 +182,25 @@ def preprocess_data(df):
     df['Sleep Disorder Binary'] = df['Sleep Disorder'].apply(lambda x: 0 if x == 'None' else 1)
     
     # Define numerical and categorical features
-    numerical_features = ['Age', 'Sleep Duration', 'Physical Activity Level', 
-                         'Heart Rate', 'Daily Steps', 'Stress Level']
+    numerical_features = [
+        'Age', 'Sleep Duration', 'Physical Activity Level', 
+        'Heart Rate', 'Daily Steps', 'Stress Level',
+        'Weekday Bedtime Hour', 'Weekday Bedtime Minute', 'Weekday Wake-up Hour', 'Weekday Wake-up Minute',
+        'Weekend Bedtime Hour', 'Weekend Bedtime Minute', 'Weekend Wake-up Hour', 'Weekend Wake-up Minute',
+        'Awakenings During Night', 'Rate Sleep Quality', 'How Relaxed Before Sleep',
+        'Breakfast Time Hour', 'Breakfast Time Minute', 'Breakfast Portion Size',
+        'Lunch Time Hour', 'Lunch Time Minute', 'Lunch Portion Size',
+        'Dinner Time Hour', 'Dinner Time Minute', 'Dinner Portion Size',
+        'No. of Meals Per Day',
+        'Light Intensity', 'Temperature'
+    ]
     
-    categorical_features = ['Gender', 'BMI Category']
+    categorical_features = [
+        'Gender', 'BMI Category',
+        'Use Electronic Devices Before Bed', 'Take Breakfast', 'Breakfast Food Type',
+        'Do Lunch', 'Lunch Food Type', 'Have Dinner', 'Dinner Food Type',
+        'Sound Exposure'
+    ]
     
     # Define preprocessor
     preprocessor = ColumnTransformer(

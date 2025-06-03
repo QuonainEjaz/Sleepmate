@@ -1,10 +1,88 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import '../widgets/custom_bottom_navigation.dart';
 import '../widgets/custom_profile_drawer.dart';
 import 'package:flutter/services.dart';
+import '../services/service_locator.dart';
+import '../models/user_model.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:image_picker/image_picker.dart';
 
-class SettingsScreen extends StatelessWidget {
+class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
+
+  @override
+  State<SettingsScreen> createState() => _SettingsScreenState();
+}
+
+class _SettingsScreenState extends State<SettingsScreen> {
+  UserModel? _currentUser;
+  bool _isLoading = true;
+  bool _isUploading = false;
+  File? _selectedImage;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserData();
+  }
+
+  Future<void> _loadUserData() async {
+    try {
+      final user = await serviceLocator.auth.getCurrentUser();
+      setState(() {
+        _currentUser = user;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+  
+  Future<void> _pickAndUploadImage() async {
+    try {
+      // Show image picker dialog
+      final imageFile = await serviceLocator.image.showImagePickerDialog(context);
+      
+      if (imageFile != null) {
+        setState(() {
+          _selectedImage = imageFile;
+          _isUploading = true;
+        });
+        
+        // Upload image to server
+        final updatedUser = await serviceLocator.image.uploadProfileImage(imageFile);
+        
+        setState(() {
+          _currentUser = updatedUser;
+          _isUploading = false;
+          _selectedImage = null;
+        });
+      }
+    } catch (e) {
+      setState(() {
+        _isUploading = false;
+        _selectedImage = null;
+      });
+      
+      // Show error message
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to upload image: ${e.toString()}'))
+      );
+    }
+  }
+  
+  // Get profile image
+  ImageProvider? _getProfileImage() {
+    if (_selectedImage != null) {
+      return FileImage(_selectedImage!);
+    } else if (_currentUser?.profileImageUrl != null) {
+      return CachedNetworkImageProvider(_currentUser!.profileImageUrl!);
+    }
+    return null;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -21,32 +99,115 @@ class SettingsScreen extends StatelessWidget {
         child: Column(
           children: [
             const SizedBox(height: 40),
-            // Profile picture
-            CircleAvatar(
-              radius: 60,
-              backgroundColor: Colors.white,
-              child: CircleAvatar(
-                radius: 56,
-                backgroundColor: const Color(0xFF2D2041),
-                child: Icon(
-                  Icons.person,
-                  color: Colors.white,
-                  size: 60,
+            // Profile picture with edit button
+            Stack(
+              children: [
+                // Profile picture
+                Container(
+                  height: 160, // Diameter = 2 * radius
+                  width: 160,  // Diameter = 2 * radius
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: const LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        Color(0xFFFFC9E9), // Pink
+                        Color(0xFFF5F2B8), // Yellow
+                      ],
+                    ),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(4.0), // Border thickness
+                    child: _isUploading
+                      ? const Center(
+                          child: CircularProgressIndicator(
+                            color: Color(0xFF2D2041),
+                            strokeWidth: 3.0, // Thicker loading indicator
+                          ),
+                        )
+                      : CircleAvatar(
+                          radius: 75, // Larger inner radius
+                          backgroundColor: const Color(0xFF2D2041),
+                          backgroundImage: _getProfileImage(),
+                          child: _currentUser?.profileImageUrl == null && _selectedImage == null
+                              ? const Icon(
+                                  Icons.person,
+                                  color: Colors.white,
+                                  size: 75, // Larger icon
+                                )
+                              : null,
+                        ),
+                  ),
+                ),
+                // Edit button - positioned like in the reference image
+                Positioned(
+                  right: 5,
+                  bottom: 15,
+                  child: GestureDetector(
+                    onTap: _pickAndUploadImage,
+                    child: Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF5F2B8), // Yellow background color
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: const Color(0xFF262135), // Dark border matching background
+                          width: 2.0,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.2),
+                            spreadRadius: 1,
+                            blurRadius: 3,
+                            offset: const Offset(0, 1),
+                          ),
+                        ],
+                      ),
+                      child: const Icon(
+                        Icons.edit_outlined, // Outlined icon
+                        color: Colors.black,
+                        size: 18,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 18),
+            _isLoading
+                ? const CircularProgressIndicator(color: Colors.white)
+                : Text(
+                    _currentUser?.name ?? 'User',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 28,
+                      fontWeight: FontWeight.w600,
+                      fontFamily: 'Montaga',
+                    ),
+                  ),
+            const SizedBox(height: 80),
+
+            // App Settings Title
+            Padding(
+              padding: const EdgeInsets.only(left: 26.0, bottom: 10.0),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: const Text(
+                  'App Settings',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w400,
+                    fontFamily: 'Montaga',
+                  ),
                 ),
               ),
             ),
-            const SizedBox(height: 18),
-            const Text(
-              'Youssef Labidi',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 24,
-                fontWeight: FontWeight.w500,
-                fontFamily: 'Montaga',
-              ),
-            ),
-            const SizedBox(height: 40),
-            // App Settings Card
+            
+
+            
+            // App Settings Card - centered horizontally and vertically
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24.0),
               child: Container(
@@ -86,6 +247,9 @@ class SettingsScreen extends StatelessWidget {
                 ),
               ),
             ),
+            
+            // Spacer to push card to center vertically
+            const Spacer(),
           ],
         ),
       ),

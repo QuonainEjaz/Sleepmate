@@ -1,8 +1,54 @@
 import 'package:flutter/material.dart';
 import '../utils/app_constants.dart';
+import '../services/service_locator.dart';
+import '../models/user_model.dart';
+import '../services/auth_service.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import 'dart:io';
+import 'package:image_picker/image_picker.dart';
 
-class CustomProfileDrawer extends StatelessWidget {
+class CustomProfileDrawer extends StatefulWidget {
   const CustomProfileDrawer({super.key});
+
+  @override
+  State<CustomProfileDrawer> createState() => _CustomProfileDrawerState();
+}
+
+class _CustomProfileDrawerState extends State<CustomProfileDrawer> {
+  UserModel? _currentUser;
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserData();
+  }
+  
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Refresh user data each time the drawer becomes visible
+    _loadUserData();
+  }
+
+  Future<void> _loadUserData() async {
+    try {
+      // Force a fresh fetch from the server by not using cached data
+      final user = await serviceLocator.auth.getCurrentUserModel();
+      if (mounted) {
+        setState(() {
+          _currentUser = user;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -33,25 +79,85 @@ class CustomProfileDrawer extends StatelessWidget {
                 child: Column(
                   children: [
                     const SizedBox(height: 50),
-                    // Profile picture and name
-                    CircleAvatar(
-                      radius: 44,
-                      backgroundColor: Colors.white,
-                      child: CircleAvatar(
-                        radius: 40,
-                        backgroundColor: Color(0xFF2D2041),
-                        child: Icon(
-                          Icons.person,
-                          color: Colors.white,
-                          size: 40,
+                    // Profile picture with gradient border and edit icon
+                    Stack(
+                      children: [
+                        // Profile picture with gradient border
+                        Container(
+                          height: 88, // Diameter = 2 * radius
+                          width: 88,  // Diameter = 2 * radius
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            gradient: const LinearGradient(
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                              colors: [
+                                Color(0xFFFFC9E9), // Pink
+                                Color(0xFFF5F2B8), // Yellow
+                              ],
+                            ),
+                          ),
+                          child: Padding(
+                            padding: const EdgeInsets.all(4.0), // Border thickness
+                            child: CircleAvatar(
+                              radius: 40,
+                              backgroundColor: const Color(0xFF2D2041),
+                              backgroundImage: _currentUser?.profileImageUrl != null
+                                ? CachedNetworkImageProvider(_currentUser!.profileImageUrl!)
+                                : null,
+                              child: _currentUser?.profileImageUrl == null
+                                ? const Icon(
+                                    Icons.person,
+                                    color: Colors.white,
+                                    size: 40,
+                                  )
+                                : null,
+                            ),
+                          ),
                         ),
-                      ),
+                        // Edit button
+                        Positioned(
+                          right: 0,
+                          bottom: 5,
+                          child: GestureDetector(
+                            onTap: () {
+                              Navigator.of(context).pushNamed('/settings');
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.all(5),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFF5F2B8), // Yellow background color
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                  color: const Color(0xFF262135), // Dark border matching background
+                                  width: 1.5,
+                                ),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.2),
+                                    spreadRadius: 1,
+                                    blurRadius: 3,
+                                    offset: const Offset(0, 1),
+                                  ),
+                                ],
+                              ),
+                              child: const Icon(
+                                Icons.edit_outlined, // Outlined icon
+                                color: Colors.black,
+                                size: 14,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 12),
-                    const Text(
-                      'Youssef\nLabidi',
+                    _isLoading
+                    ? const CircularProgressIndicator(color: Colors.white)
+                    : Text(
+                      _currentUser?.name ?? 'User',
                       textAlign: TextAlign.center,
-                      style: TextStyle(
+                      style: const TextStyle(
                         color: Colors.white,
                         fontSize: 20,
                         fontWeight: FontWeight.w500,
@@ -109,12 +215,17 @@ class CustomProfileDrawer extends StatelessWidget {
                     _DrawerOption(
                       icon: Icons.logout,
                       label: '   Log out',
-                      onTap: () {
-                        // Add logout logic
-                        Navigator.of(context).pushNamedAndRemoveUntil(
-                          AppConstants.loginRoute,
-                          (route) => false,
-                        );
+                      onTap: () async {
+                        // Execute logout logic
+                        await serviceLocator<AuthService>().logout();
+                        
+                        // Then navigate to login screen
+                        if (mounted) {
+                          Navigator.of(context).pushNamedAndRemoveUntil(
+                            AppConstants.loginRoute,
+                            (route) => false,
+                          );
+                        }
                       },
                       isLogout: true,
                     ),

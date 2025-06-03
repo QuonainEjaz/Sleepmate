@@ -46,34 +46,31 @@ class AccountInformationScreen extends StatelessWidget {
       backgroundColor: const Color(0xFF262135),
       endDrawer: const CustomProfileDrawer(),
       body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const SizedBox(height: 20),
-                CircleAvatar(
-                  radius: 50,
-                  backgroundColor: Colors.white24,
-                  child: Icon(
-                    Icons.person,
-                    size: 50,
-                    color: Colors.white70,
-                  ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Title at the top with padding
+            Padding(
+              padding: const EdgeInsets.only(left: 30.0, top: 100.0),
+              child: const Text(
+                'Account Information',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 28,
+                  fontFamily: 'Montaga',
+                  fontWeight: FontWeight.w500,
                 ),
-                const SizedBox(height: 20),
-                const Text(
-                  'Account Information',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 28,
-                    fontFamily: 'Montaga',
-                    fontWeight: FontWeight.w400,
-                  ),
-                ),
-                const SizedBox(height: 40),
+              ),
+            ),
+            // Expanded to push content to center
+            Expanded(
+              child: Center(
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                  padding: const EdgeInsets.symmetric(horizontal: 28.0),
                   child: Container(
                     width: double.infinity,
                     decoration: BoxDecoration(
@@ -101,10 +98,13 @@ class AccountInformationScreen extends StatelessWidget {
                     ),
                   ),
                 ),
-                const SizedBox(height: 40),
-              ],
+                const SizedBox(height: 120),
+                    ],
+                  ),
+                ),
+              ),
             ),
-          ),
+          ],
         ),
       ),
       bottomNavigationBar: CustomBottomNavigation(
@@ -133,8 +133,8 @@ class _InfoRow extends StatelessWidget {
           style: const TextStyle(
             color: Colors.white,
             fontFamily: 'Montaga',
-            fontSize: 16,
-            fontWeight: FontWeight.w400,
+            fontSize: 18,
+            fontWeight: FontWeight.w900,
           ),
         ),
         const SizedBox(width: 18),

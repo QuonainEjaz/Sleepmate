@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../utils/app_constants.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../services/service_locator.dart';
+import '../services/auth_service.dart';
 
 class SplashScreen1 extends StatefulWidget {
   const SplashScreen1({Key? key}) : super(key: key);
@@ -21,7 +23,18 @@ class _SplashScreen1State extends State<SplashScreen1> {
   Future<void> _navigateToWelcome() async {
     await Future.delayed(const Duration(seconds: 2));
     if (!mounted) return;
-    await Navigator.pushReplacementNamed(context, AppConstants.welcomeRoute);
+    
+    // Check if user is already logged in
+    final authService = serviceLocator<AuthService>();
+    final token = await authService.getToken();
+    
+    if (token != null) {
+      // User is already logged in, navigate to home/prediction screen
+      Navigator.pushReplacementNamed(context, AppConstants.predictionRoute);
+    } else {
+      // User is not logged in, navigate to welcome screen
+      Navigator.pushReplacementNamed(context, AppConstants.welcomeRoute);
+    }
   }
 
   @override

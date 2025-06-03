@@ -9,6 +9,7 @@ import '../blocs/auth/auth_state.dart';
 import '../utils/app_constants.dart';
 import '../utils/app_theme.dart';
 import 'onboarding_screen.dart';
+import 'sleep_patterns_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({Key? key}) : super(key: key);
@@ -50,7 +51,7 @@ class _LoginScreenState extends State<LoginScreen> {
         } else if (state is AuthAuthenticated) {
           Navigator.of(context).pushReplacement(
             MaterialPageRoute(
-              builder: (context) => const OnboardingScreen(),
+              builder: (context) => const SleepPatternsScreen(),
             ),
           );
         }

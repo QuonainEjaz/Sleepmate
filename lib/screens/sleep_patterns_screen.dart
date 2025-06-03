@@ -5,6 +5,11 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter/services.dart';
 import '../widgets/custom_bottom_navigation.dart';
 import '../widgets/custom_profile_drawer.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import '../blocs/auth/auth_bloc.dart';
+import '../blocs/auth/auth_event.dart';
+import '../blocs/auth/auth_state.dart';
+import '../services/auth_service.dart';
 
 class SleepPatternsScreen extends StatefulWidget {
   const SleepPatternsScreen({Key? key}) : super(key: key);
@@ -14,6 +19,12 @@ class SleepPatternsScreen extends StatefulWidget {
 }
 
 class _SleepPatternsScreenState extends State<SleepPatternsScreen> {
+  // Controllers for age input
+  final TextEditingController _ageController = TextEditingController();
+  String? _selectedGender;
+  bool _isFirstTimeUser = false;
+  bool _isLoadingUserData = true;
+  
   @override
   void initState() {
     super.initState();
@@ -27,6 +38,43 @@ class _SleepPatternsScreenState extends State<SleepPatternsScreen> {
         systemNavigationBarIconBrightness: Brightness.dark,
       ),
     );
+    
+    // Check if user is first time user (missing gender or age)
+    _checkIfFirstTimeUser();
+  }
+  
+  @override
+  void dispose() {
+    _ageController.dispose();
+    super.dispose();
+  }
+  
+  Future<void> _checkIfFirstTimeUser() async {
+    setState(() => _isLoadingUserData = true);
+    
+    try {
+      final authBloc = BlocProvider.of<AuthBloc>(context);
+      final currentState = authBloc.state;
+      
+      if (currentState is AuthAuthenticated && currentState.user != null) {
+        final user = currentState.user;
+        
+        // Check if gender is empty or dateOfBirth is not set
+        if (user == null || 
+            user['gender'] == null || 
+            user['gender']?.toString().isEmpty == true || 
+            user['dateOfBirth'] == null || 
+            user['dateOfBirth']?.toString().isEmpty == true) {
+          setState(() => _isFirstTimeUser = true);
+        } else {
+          setState(() => _isFirstTimeUser = false);
+        }
+      }
+    } catch (e) {
+      print('Error checking user data: $e');
+    } finally {
+      setState(() => _isLoadingUserData = false);
+    }
   }
 
   TimeOfDay _weekdayBedtime = const TimeOfDay(hour: 23, minute: 0);
@@ -295,16 +343,67 @@ class _SleepPatternsScreenState extends State<SleepPatternsScreen> {
 
   // Save sleep data and navigate to next screen
   void _saveAndContinue() {
-    final sleepData = _buildSleepData();
-    
-    // Navigate to DietaryHabitsScreen with the sleep data
-    Navigator.pushNamed(
-      context,
-      AppConstants.dietaryHabitsRoute,
-      arguments: {
-        'sleepData': sleepData,
-      },
-    );
+    // Check if this is a first-time user who needs to set age and gender
+    if (_isFirstTimeUser) {
+      // Validate age and gender inputs
+      if (_ageController.text.isEmpty || _selectedGender == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Please enter your age and select your gender'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+      
+      final age = int.tryParse(_ageController.text);
+      if (age == null || age < 1 || age > 120) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Please enter a valid age between 1 and 120'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+      
+      // Show loading indicator
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (BuildContext context) {
+          return const Center(
+            child: CircularProgressIndicator(
+              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+            ),
+          );
+        },
+      );
+      
+      // Calculate date of birth from age
+      final dateOfBirth = DateTime.now().subtract(Duration(days: age * 365));
+      
+      // Update user profile with age and gender
+      final authBloc = BlocProvider.of<AuthBloc>(context);
+      authBloc.add(UpdateProfileEvent(
+        dateOfBirth: dateOfBirth,
+        gender: _selectedGender!.toLowerCase(),
+      ));
+      
+      // Navigation will be handled in the BlocListener when the profile update is successful
+    } else {
+      // Regular flow for returning users
+      final sleepData = _buildSleepData();
+      
+      // Navigate to DietaryHabitsScreen with the sleep data
+      Navigator.pushNamed(
+        context,
+        AppConstants.dietaryHabitsRoute,
+        arguments: {
+          'sleepData': sleepData,
+        },
+      );
+    }
   }
 
   @override
@@ -312,15 +411,53 @@ class _SleepPatternsScreenState extends State<SleepPatternsScreen> {
     return Scaffold(
       extendBodyBehindAppBar: true,
       backgroundColor: Colors.white,
-      body: SafeArea(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+      body: BlocListener<AuthBloc, AuthState>(
+        listener: (context, state) {
+          if (state is AuthAuthenticated && state.user != null) {
+            // Close loading indicator if showing
+            if (Navigator.of(context).canPop()) {
+              Navigator.pop(context);
+            }
+            
+            // Check if this was a profile update for first-time user
+            if (_isFirstTimeUser && 
+                state.user != null &&
+                state.user?['gender'] != null && 
+                state.user?['dateOfBirth'] != null) {
+              // Navigate to the dietary habits screen
+              Navigator.pushReplacementNamed(
+                context,
+                AppConstants.dietaryHabitsRoute,
+                arguments: {
+                  'sleepData': _buildSleepData(),
+                },
+              );
+            }
+          } else if (state is AuthError) {
+            // Close loading indicator if showing
+            if (Navigator.of(context).canPop()) {
+              Navigator.pop(context);
+            }
+            
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(state.message),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+        },
+        child: SafeArea(
+          child: _isLoadingUserData 
+            ? const Center(child: CircularProgressIndicator())
+            : Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
             Container(
               width: double.infinity,
               padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 24),
               child: Text(
-                'Sleep Patterns',
+                _isFirstTimeUser ? 'Complete Your Profile' : 'Sleep Patterns',
                 textAlign: TextAlign.center,
                 style: GoogleFonts.montaga(
                   fontSize: 25,
@@ -329,140 +466,265 @@ class _SleepPatternsScreenState extends State<SleepPatternsScreen> {
                 ),
               ),
             ),
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.only( left: 24, right: 24),
+            // Show first-time user message if needed
+            if (_isFirstTimeUser)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24.0),
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    _buildTimeSelector('Weekday Bedtime', 'weekdayBedtime'),
-                    const SizedBox(height: 16),
-                    _buildTimeSelector('Weekday Wake-up', 'weekdayWakeup'),
-                    const SizedBox(height: 16),
-                    _buildTimeSelector('Weekend Bedtime', 'weekendBedtime'),
-                    const SizedBox(height: 16),
-                    _buildTimeSelector('Weekend wake-up', 'weekendWakeup'),
-                    const SizedBox(height: 16),
-                    _buildStepper('Average Sleep Duration', _sleepDuration, (val) => setState(() => _sleepDuration = val)),
-                    const SizedBox(height: 16),
-                    _buildStepper('Awakenings during night', _awakenings, (val) => setState(() => _awakenings = val)),
-                    const SizedBox(height: 16),
-                    _buildStepper('Rate sleep quality', _rateSleepQuality, (val) => setState(() => _rateSleepQuality = val),
-                      subtitle: '(1 for worst and 5 for best)',
-                      min: 1,
-                      max: 5,
-                      showIcons: false,
-                      hintText: '1 - 5'),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 8),
                     Text(
-                      'Use electronic devices before bed?',
+                      'Please provide your age and gender to personalize your sleep predictions.',
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.montserrat(
+                        fontSize: 14,
+                        color: Colors.black87,
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    // Age input
+                    Text(
+                      'Your Age',
                       style: GoogleFonts.montaga(
                         fontSize: 16,
                         color: Colors.black87,
                       ),
                     ),
                     const SizedBox(height: 8),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Row(
-                          children: [
-                            SizedBox(
-                              width: 24,
-                              height: 24,
-                              child: Checkbox(
-                                value: _useElectronics,
-                                onChanged: (value) {
-                                  setState(() {
-                                    _useElectronics = value ?? false;
-                                  });
-                                },
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(4),
-                                ),
-                                side: BorderSide(color: Colors.grey.shade300),
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Text(
-                              'Yes',
-                              style: GoogleFonts.montaga(
-                                fontSize: 14,
-                                color: Colors.black87,
-                              ),
-                            ),
-                          ],
+                    Container(
+                      height: 55,
+                      width: 170,
+                      decoration: BoxDecoration(
+                        color: Colors.grey.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(25),
+                      ),
+                      child: TextField(
+                        controller: _ageController,
+                        style: GoogleFonts.montaga(
+                          fontSize: 18,
+                          color: const Color(0xFF31244C),
                         ),
-                        const SizedBox(width: 64),
-                        Row(
-                          children: [
-                            SizedBox(
-                              width: 24,
-                              height: 24,
-                              child: Checkbox(
-                                value: !_useElectronics,
-                                onChanged: (value) {
-                                  setState(() {
-                                    _useElectronics = !(value ?? true);
-                                  });
-                                },
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(4),
-                                ),
-                                side: BorderSide(color: Colors.grey.shade300),
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Text(
-                              'No',
-                              style: GoogleFonts.montaga(
-                                fontSize: 14,
-                                color: Colors.black87,
-                              ),
-                            ),
-                            const SizedBox(width: 90),
-
-                          ],
+                        textAlign: TextAlign.center,
+                        keyboardType: TextInputType.number,
+                        decoration: InputDecoration(
+                          hintText: 'Age',
+                          hintStyle: GoogleFonts.montaga(
+                            fontSize: 16,
+                            color: const Color(0xFF31244C).withOpacity(0.5),
+                          ),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(25),
+                            borderSide: BorderSide.none,
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 20,
+                            vertical: 16,
+                          ),
                         ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    _buildStepper(
-                      'How relaxed do you feel before sleep?',
-                      _relaxedBeforeSleep,
-                      (val) => setState(() => _relaxedBeforeSleep = val),
-                      subtitle: '(1 for not relaxed, 5 for very relaxed)',
-                      min: 1,
-                      max: 5,
-                      showIcons: false,
-                      hintText: '1 - 5',
+                      ),
                     ),
                     const SizedBox(height: 24),
-                    _buildStepper(
-                      'Stress Level',
-                      _stressLevel.toInt(),
-                      (val) => setState(() => _stressLevel = val.toDouble()),
-                      subtitle: '(1 for low, 5 for high)',
-                      min: 1,
-                      max: 5,
-                      showIcons: false,
-                      hintText: '1 - 5',
+                    // Gender dropdown
+                    Text(
+                      'Your Gender',
+                      style: GoogleFonts.montaga(
+                        fontSize: 16,
+                        color: Colors.black87,
+                      ),
                     ),
-                    const SizedBox(height: 32),
-                    SizedBox(
-                      width: double.infinity,
-                      height: 56,
-                      child: ElevatedButton(
-                        onPressed: _saveAndContinue,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF2A2438),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
+                    const SizedBox(height: 8),
+                    Container(
+                      height: 55,
+                      width: 170,
+                      decoration: BoxDecoration(
+                        color: Colors.grey.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(25),
+                      ),
+                      child: DropdownButtonHideUnderline(
+                        child: DropdownButton<String>(
+                          value: _selectedGender,
+                          isExpanded: true,
+                          dropdownColor: const Color(0xFF352F44),
+                          icon: const Icon(
+                            Icons.arrow_drop_down,
+                            color: Color(0xFF31244C),
                           ),
-                          elevation: 0,
+                          hint: Center(
+                            child: Text(
+                              'Select Gender',
+                              style: GoogleFonts.montaga(
+                                fontSize: 16,
+                                color: const Color(0xFF31244C).withOpacity(0.5),
+                              ),
+                            ),
+                          ),
+                          items: ['Male', 'Female', 'Other']
+                              .map((String value) {
+                            return DropdownMenuItem<String>(
+                              value: value,
+                              child: Center(
+                                child: Text(
+                                  value,
+                                  style: GoogleFonts.montaga(
+                                    fontSize: 16,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ),
+                            );
+                          }).toList(),
+                          onChanged: (String? newValue) {
+                            setState(() {
+                              _selectedGender = newValue;
+                            });
+                          },
                         ),
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                  ],
+                ),
+              ),
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.only(left: 24, right: 24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Only show sleep pattern inputs for returning users
+                    if (!_isFirstTimeUser) ...[                    
+                      _buildTimeSelector('Weekday Bedtime', 'weekdayBedtime'),
+                      const SizedBox(height: 16),
+                      _buildTimeSelector('Weekday Wake-up', 'weekdayWakeup'),
+                      const SizedBox(height: 16),
+                      _buildTimeSelector('Weekend Bedtime', 'weekendBedtime'),
+                      const SizedBox(height: 16),
+                      _buildTimeSelector('Weekend wake-up', 'weekendWakeup'),
+                      const SizedBox(height: 16),
+                      _buildStepper('Average Sleep Duration', _sleepDuration, (val) => setState(() => _sleepDuration = val)),
+                      const SizedBox(height: 16),
+                      _buildStepper('Awakenings during night', _awakenings, (val) => setState(() => _awakenings = val)),
+                      const SizedBox(height: 16),
+                      _buildStepper('Rate sleep quality', _rateSleepQuality, (val) => setState(() => _rateSleepQuality = val),
+                        subtitle: '(1 for worst and 5 for best)',
+                        min: 1,
+                        max: 5,
+                        showIcons: false,
+                        hintText: '1 - 5'),
+                      const SizedBox(height: 16),
+                      Text(
+                        'Use electronic devices before bed?',
+                        style: GoogleFonts.montaga(
+                          fontSize: 16,
+                          color: Colors.black87,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Row(
+                            children: [
+                              SizedBox(
+                                width: 24,
+                                height: 24,
+                                child: Checkbox(
+                                  value: _useElectronics,
+                                  onChanged: (value) {
+                                    setState(() {
+                                      _useElectronics = value ?? false;
+                                    });
+                                  },
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  side: BorderSide(color: Colors.grey.shade300),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                'Yes',
+                                style: GoogleFonts.montaga(
+                                  fontSize: 14,
+                                  color: Colors.black87,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(width: 64),
+                          Row(
+                            children: [
+                              SizedBox(
+                                width: 24,
+                                height: 24,
+                                child: Checkbox(
+                                  value: !_useElectronics,
+                                  onChanged: (value) {
+                                    setState(() {
+                                      _useElectronics = !(value ?? true);
+                                    });
+                                  },
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  side: BorderSide(color: Colors.grey.shade300),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                'No',
+                                style: GoogleFonts.montaga(
+                                  fontSize: 14,
+                                  color: Colors.black87,
+                                ),
+                              ),
+                              const SizedBox(width: 90),
+
+                            ],
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      _buildStepper(
+                        'How relaxed do you feel before sleep?',
+                        _relaxedBeforeSleep,
+                        (val) => setState(() => _relaxedBeforeSleep = val),
+                        subtitle: '(1 for not relaxed, 5 for very relaxed)',
+                        min: 1,
+                        max: 5,
+                        showIcons: false,
+                        hintText: '1 - 5',
+                      ),
+                      const SizedBox(height: 24),
+                      _buildStepper(
+                        'Stress Level',
+                        _stressLevel.toInt(),
+                        (val) => setState(() => _stressLevel = val.toDouble()),
+                        subtitle: '(1 for low, 5 for high)',
+                        min: 1,
+                        max: 5,
+                        showIcons: false,
+                        hintText: '1 - 5',
+                      ),
+                    ],
+                    const SizedBox(height: 32),
+                    Center(
+                      child: SizedBox(
+                        width: MediaQuery.of(context).size.width * 0.75,
+                        height: 56,
+                        child: ElevatedButton(
+                          onPressed: _saveAndContinue,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF65558F),
+                            padding: const EdgeInsets.symmetric(vertical: 16 ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(25),
+                            ),
+                            elevation: 0,
+                          ),
                         child: Text(
-                          'Next: Dietary Habits',
+                          _isFirstTimeUser ? 'Next' : 'Next',
                           style: GoogleFonts.montserrat(
                             fontSize: 18,
                             fontWeight: FontWeight.w600,
@@ -471,7 +733,8 @@ class _SleepPatternsScreenState extends State<SleepPatternsScreen> {
                         ),
                       ),
                     ),
-                    const SizedBox(height: 24),
+                    ),
+                    const SizedBox(height: 4),
                   ],
                 ),
               ),
@@ -515,6 +778,7 @@ class _SleepPatternsScreenState extends State<SleepPatternsScreen> {
           ],
         ),
       ),
+    ),
       bottomNavigationBar: CustomBottomNavigation(
         screenColor: Colors.white,
         currentIndex: 0,

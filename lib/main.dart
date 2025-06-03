@@ -25,8 +25,7 @@ import 'screens/register_screen.dart';
 import 'screens/welcome_screen.dart';
 import 'screens/onboarding_screen.dart';
 import 'screens/sleep_quality_screen.dart';
-import 'screens/sleep_duration_screen.dart';
-import 'screens/sleep_goals_screen.dart';
+// Missing screens removed
 import 'screens/dietary_habits_screen.dart';
 import 'screens/environmental_factors_screen.dart';
 import 'screens/sleep_patterns_screen.dart';
