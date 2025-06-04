@@ -714,7 +714,10 @@ class _SleepPatternsScreenState extends State<SleepPatternsScreen> {
                         width: MediaQuery.of(context).size.width * 0.75,
                         height: 56,
                         child: ElevatedButton(
-                          onPressed: _saveAndContinue,
+                          onPressed: () {
+                            // After data submission, go to PredictionScreen and clear stack
+                            Navigator.pushNamedAndRemoveUntil(context, '/prediction', (route) => false);
+                          },
                           style: ElevatedButton.styleFrom(
                             backgroundColor: const Color(0xFF65558F),
                             padding: const EdgeInsets.symmetric(vertical: 16 ),

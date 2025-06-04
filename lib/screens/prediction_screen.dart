@@ -47,14 +47,13 @@ class _PredictionScreenState extends State<PredictionScreen> {
   String _userName = 'User';
   bool _isGenerating = false;
   String? _generationError;
-  UserModel? _user;
+  UserModel? _userProfile;
 
   @override
   void initState() {
     super.initState();
     
-    // Load user data first (for name and profile image)
-    _loadUserData();
+    _loadUserProfile();
     
     // If prediction data is passed from environmental factors screen
     if (widget.prediction != null) {
@@ -160,19 +159,17 @@ class _PredictionScreenState extends State<PredictionScreen> {
     _makePredictionWithUserData();
   }
 
-  // Load just the user profile data (name, image, etc.)
-  Future<void> _loadUserData() async {
+  Future<void> _loadUserProfile() async {
     try {
-      // Load user profile for the name and profile image
       final userProfile = await _authService.getCurrentUserModel();
       if (userProfile != null && mounted) {
         setState(() {
           _userName = userProfile.name ?? 'User';
-          _user = userProfile;
+          _userProfile = userProfile;
         });
       }
     } catch (e) {
-      print('Error loading user data: $e');
+      print('Error loading user profile: $e');
     }
   }
   
@@ -189,7 +186,7 @@ class _PredictionScreenState extends State<PredictionScreen> {
       if (userProfile != null) {
         setState(() {
           _userName = userProfile.name ?? 'User';
-          _user = userProfile;
+          _userProfile = userProfile;
         });
       }
       
@@ -226,7 +223,7 @@ class _PredictionScreenState extends State<PredictionScreen> {
       final predictionService = serviceLocator<PredictionService>();
       
       await predictionService.generatePrediction(
-        _user!.id,
+        _userProfile!.id,
         {}, // Environmental data placeholder
         {}, // Dietary data placeholder
         [], // Historical sleep data placeholder
@@ -357,6 +354,7 @@ class _PredictionScreenState extends State<PredictionScreen> {
     SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
       statusBarColor: Colors.transparent,
       statusBarIconBrightness: Brightness.dark,
+      statusBarBrightness: Brightness.light,
     ));
 
     return Scaffold(
@@ -413,58 +411,67 @@ class _PredictionScreenState extends State<PredictionScreen> {
                         : Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: <Widget>[
-                              Row(
-                                children: <Widget>[
-                                  Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                              FutureBuilder<UserModel?>(
+                                future: _authService.getCurrentUserModel(),
+                                builder: (context, snapshot) {
+                                  if (!snapshot.hasData) {
+                                    return const Center(child: CircularProgressIndicator());
+                                  }
+                                  final user = snapshot.data!;
+                                  return Row(
                                     children: <Widget>[
-                                      const Text(
-                                        'Hi!,',
-                                        style: TextStyle(
-                                          fontFamily: 'Montaga',
-                                          fontSize: 28,
-                                          fontWeight: FontWeight.bold,
-                                          color: Color(0xFF31244C),
-                                        ),
-                                      ),
-                                      Text(
-                                        '$_userName',
-                                        style: const TextStyle(
-                                          fontFamily: 'Montaga',
-                                          fontSize: 28,
-                                          fontWeight: FontWeight.bold,
-                                          color: Color(0xFF31244C),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  const Spacer(),
-                                  Container(
-                                    width: 80,
-                                    height: 80,
-                                    decoration: const BoxDecoration(
-                                      shape: BoxShape.circle,
-                                      color: Color(0xFFEFEFEF),
-                                    ),
-                                    child: _user?.profileImageUrl != null && _user!.profileImageUrl!.isNotEmpty
-                                      ? ClipOval(
-                                          child: Image.network(
-                                            _user!.profileImageUrl!,
-                                            fit: BoxFit.cover,
-                                            errorBuilder: (context, error, stackTrace) => const Icon(
-                                              Icons.person,
-                                              size: 45,
-                                              color: Color(0xFF65558F),
+                                      Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: <Widget>[
+                                          const Text(
+                                            'Hi!,',
+                                            style: TextStyle(
+                                              fontFamily: 'Montaga',
+                                              fontSize: 28,
+                                              fontWeight: FontWeight.bold,
+                                              color: Color(0xFF31244C),
                                             ),
                                           ),
-                                        )
-                                      : const Icon(
-                                          Icons.person,
-                                          size: 35,
-                                          color: Color(0xFF65558F),
+                                          Text(
+                                            user.name,
+                                            style: const TextStyle(
+                                              fontFamily: 'Montaga',
+                                              fontSize: 28,
+                                              fontWeight: FontWeight.bold,
+                                              color: Color(0xFF31244C),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      const Spacer(),
+                                      Container(
+                                        width: 80,
+                                        height: 80,
+                                        decoration: const BoxDecoration(
+                                          shape: BoxShape.circle,
+                                          color: Color(0xFFEFEFEF),
                                         ),
-                                  ),
-                                ],
+                                        child: user.profileImageUrl != null && user.profileImageUrl!.isNotEmpty
+                                            ? ClipOval(
+                                                child: Image.network(
+                                                  user.profileImageUrl!,
+                                                  fit: BoxFit.cover,
+                                                  errorBuilder: (context, error, stackTrace) => const Icon(
+                                                    Icons.person,
+                                                    color: Color(0xFF2D2041),
+                                                    size: 45,
+                                                  ),
+                                                ),
+                                              )
+                                            : const Icon(
+                                                Icons.person,
+                                                color: Color(0xFF2D2041),
+                                                size: 45,
+                                              ),
+                                      ),
+                                    ],
+                                  );
+                                },
                               ),
                               const SizedBox(height: 24),
                               // Prediction box
@@ -486,7 +493,7 @@ class _PredictionScreenState extends State<PredictionScreen> {
                                         ),
                                       )
                                     : Text(
-                                        "We've analyzed your sleep data and found several disruptions. You're averaging only 6 hours of sleep on weekdays (below the recommended 7-9 hours), with night awakenings and device use (blue light exposure) affecting your restorative sleep. Consistent but limited dietary variety, high temperatures (44°C), and loud noise levels (80 dB) further impact your sleep quality.",
+                                        _prediction!.inputData['prediction'] ?? 'No prediction available.',
                                         style: const TextStyle(
                                           fontFamily: 'Montaga',
                                           fontSize: 16,

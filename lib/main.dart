@@ -18,6 +18,7 @@ import 'services/api_service.dart';
 import 'services/auth_service.dart';
 import 'services/cache_service.dart';
 import 'services/logger_service.dart';
+import 'services/prediction_service.dart';
 
 import 'screens/splash_screen.dart';
 import 'screens/login_screen.dart';
@@ -142,6 +143,7 @@ class MyApp extends StatelessWidget {
         providers: [
           ChangeNotifierProvider(create: (_) => AuthProvider()),
           Provider<AuthService>(create: (_) => serviceLocator<AuthService>()),
+          Provider<PredictionService>(create: (_) => serviceLocator<PredictionService>()),
         ],
         child: MaterialApp(
           title: 'Sleep Prediction',
@@ -154,7 +156,7 @@ class MyApp extends StatelessWidget {
             // Apply Montserrat Alternates to all text styles
             useMaterial3: true,
           ),
-          initialRoute: AppConstants.splashRoute,
+          initialRoute: '/sleep_pattern',
           onGenerateRoute: (settings) {
             // Handle named routes with arguments
             switch (settings.name) {
