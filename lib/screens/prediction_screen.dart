@@ -347,24 +347,18 @@ class _PredictionScreenState extends State<PredictionScreen> {
         );
         
         if (mounted) {
-          setState(() {
-            _prediction = prediction;
-            _isLoading = false;
-            _isGenerating = false;
-          });
-        }
       }
-    } catch (e, stackTrace) {
-      _logger.e('Error in prediction flow', e, stackTrace);
-      
-      if (!mounted) return;
-      
+    }
+  } catch (e, stackTrace) {
+    _logger.e('Error in prediction flow', e, stackTrace);
+
+    if (mounted) {
       setState(() {
         _errorMessage = 'Error: ${e.toString()}';
         _isLoading = false;
         _isGenerating = false;
       });
-      
+
       // Show error to user
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -374,66 +368,6 @@ class _PredictionScreenState extends State<PredictionScreen> {
         ),
       );
     }
-      
-      // If already unmounted, don't continue
-      if (!mounted) return;
-      
-      // Navigate to dietary habits input screen with previous data
-      final dietaryDataResult = await Navigator.push<Map<String, dynamic>>(
-        context,
-        MaterialPageRoute(
-          builder: (context) => DietaryHabitsScreen(
-            onSaveOnly: true, // Don't save to backend, just return data
-            sleepData: sleepData, // Pass previously collected data
-          ),
-        ),
-      );
-      
-      // Use result if available, otherwise keep empty map
-      if (dietaryDataResult != null) {
-        dietaryData = dietaryDataResult;
-      }
-      
-      // If already unmounted, don't continue
-      if (!mounted) return;
-      
-      // Make prediction with collected data - uses default values where needed
-      final predictionService = serviceLocator<PredictionService>();
-      
-      final prediction = await predictionService.makePrediction(
-        sleepData: sleepData,
-        environmentalData: environmentalData,
-        dietaryData: dietaryData,
-      );
-      
-      // Get recommendations based on the data
-      final recommendations = await predictionService.getRecommendations({
-        'sleepData': sleepData,
-        'environmentalData': environmentalData,
-        'dietaryData': dietaryData,
-      });
-      
-      if (prediction != null && mounted) {
-        setState(() {
-          _prediction = prediction.copyWith(recommendations: recommendations);
-          _isGenerating = false;
-        });
-        
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('AI prediction generated successfully!')),
-        );
-      } else if (mounted) {
-        setState(() {
-          _generationError = 'Failed to generate prediction';
-          _isGenerating = false;
-        });
-        
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Could not generate prediction. Please try again.')),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
         setState(() {
           _generationError = 'Failed to generate AI prediction: ${e.toString()}';
           _isGenerating = false;
