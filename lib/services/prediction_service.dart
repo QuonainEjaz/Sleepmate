@@ -4,13 +4,19 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/prediction_model.dart';
 import '../ai/sleep_prediction_ai.dart';
 import 'base_service.dart';
-import 'service_locator.dart';
+// import 'service_locator.dart'; // Assuming ApiService is injected or created directly
 import 'logger_service.dart';
+import 'api_service.dart'; // Import ApiService
+import '../config/api_config.dart'; // Import ApiConfig
 
 class PredictionService extends BaseService {
+  final ApiService _apiService; // Add ApiService instance
   final LoggerService _logger = LoggerService();
   
-  PredictionService() : super();
+  // Constructor with ApiService injection (or create it here)
+  PredictionService({ApiService? apiService}) 
+      : _apiService = apiService ?? ApiService(), 
+        super();
   
   // Generate a new prediction using local AI
   Future<PredictionModel> generatePrediction(
@@ -66,7 +72,7 @@ class PredictionService extends BaseService {
       _logger.i('Prediction generated successfully');
       return PredictionModel.fromJson(prediction);
     } catch (e, stackTrace) {
-      _logger.e('Error generating prediction', e, stackTrace);
+      _logger.e('Error generating prediction: $e', stackTrace.toString());
       rethrow;
     }
   }
@@ -77,8 +83,8 @@ class PredictionService extends BaseService {
       // In a real app, you would fetch this from local storage
       // For now, we'll return null as we don't have a local storage implementation
       return null;
-    } catch (e) {
-      _logger.e('Error getting prediction by ID', e);
+    } catch (e, stackTrace) {
+      _logger.e('Error getting prediction by ID: $e', stackTrace.toString());
       return null;
     }
   }
@@ -89,8 +95,8 @@ class PredictionService extends BaseService {
       // In a real app, you would fetch this from local storage
       // For now, we'll return an empty list
       return [];
-    } catch (e) {
-      _logger.e('Error getting predictions for user', e);
+    } catch (e, stackTrace) {
+      _logger.e('Error getting predictions for user: $e', stackTrace.toString());
       return [];
     }
   }
@@ -118,8 +124,8 @@ class PredictionService extends BaseService {
       
       // Convert to consistency score (0-1)
       return (1.0 - variance).clamp(0.3, 1.0);
-    } catch (e) {
-      _logger.e('Error calculating sleep consistency', e);
+    } catch (e, stackTrace) {
+      _logger.e('Error calculating sleep consistency: $e', stackTrace.toString());
       return 0.7; // Default value on error
     }
   }
@@ -152,7 +158,7 @@ class PredictionService extends BaseService {
       
       _logger.d('Saved prediction locally for user: $userId');
     } catch (e, stackTrace) {
-      _logger.e('Error saving prediction locally', e, stackTrace);
+      _logger.e('Error saving prediction locally: $e', stackTrace.toString());
       rethrow;
     }
   }
@@ -163,8 +169,8 @@ class PredictionService extends BaseService {
       // In a real app, you might want to get the latest from local storage
       // For now, we'll return null to indicate no saved predictions
       return null;
-    } catch (e) {
-      _logger.e('Error getting latest prediction', e);
+    } catch (e, stackTrace) {
+      _logger.e('Error getting latest prediction: $e', stackTrace.toString());
       return null;
     }
   }
@@ -176,8 +182,33 @@ class PredictionService extends BaseService {
       final prediction = SleepPredictionAI.predict(params);
       return PredictionModel.fromJson(prediction);
     } catch (e, stackTrace) {
-      _logger.e('Error getting prediction', e, stackTrace);
+      _logger.e('Error getting prediction: $e', stackTrace.toString());
       rethrow;
+    }
+  }
+
+  // Get recommendations based on parameters
+  Future<List<String>> getRecommendations(Map<String, dynamic> params) async {
+    try {
+      _logger.i('Fetching recommendations with params: $params');
+      // Assuming params might contain userId or other filters for the API
+      final response = await _apiService.get(
+        ApiConfig.endpoints.predictions.recommendations,
+        queryParameters: params, // Pass params to the API call
+      );
+
+      if (response != null && response is Map && response.containsKey('recommendations')) {
+        final recommendationsData = response['recommendations'];
+        if (recommendationsData is List) {
+          return List<String>.from(recommendationsData.map((item) => item.toString()));
+        }
+      }
+      _logger.w('No recommendations found or unexpected format: $response');
+      return []; // Return empty list if no recommendations or error
+    } catch (e, stackTrace) {
+      _logger.e('Error getting recommendations: $e', stackTrace.toString());
+      // Depending on requirements, you might want to return an empty list or rethrow
+      return []; 
     }
   }
   
@@ -198,10 +229,10 @@ class PredictionService extends BaseService {
     try {
       _logger.i('Making AI prediction with user data');
       
-      // Get current user ID
       final userId = await serviceLocator.auth.getCurrentUserId();
       if (userId == null) {
-        throw Exception('User ID not available');
+        _logger.e('User ID not available for AI prediction.');
+        throw Exception('User ID not available for AI prediction. Please log in.');
       }
 
       // Process input data
@@ -215,16 +246,16 @@ class PredictionService extends BaseService {
 
       _logger.d('Generating prediction with data: ${jsonEncode(processedData)}');
       
-      // Generate prediction using local AI
-      final prediction = SleepPredictionAI.predict(processedData);
+      // Call the local AI for prediction
+      final predictionMap = SleepPredictionAI.predict(processedData);
       
-      // Save prediction locally
-      await _savePredictionLocally(userId, prediction);
+      // Save the prediction locally
+      await _savePredictionLocally(userId, predictionMap);
       
-      _logger.i('Prediction generated successfully');
-      return PredictionModel.fromJson(prediction);
+      _logger.i('AI prediction generated and saved successfully for user: $userId');
+      return PredictionModel.fromJson(predictionMap);
     } catch (e, stackTrace) {
-      _logger.e('Error making AI prediction', e, stackTrace);
+      _logger.e('Error making AI prediction: $e', stackTrace.toString());
       rethrow;
     }
   }

@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+import '../models/prediction_model.dart';
+import '../services/auth_service.dart';
+import '../services/logger_service.dart';
+import '../services/service_locator.dart';
 import '../utils/app_constants.dart';
 import '../widgets/custom_bottom_navigation.dart';
 import '../widgets/sleep_factors_pie_chart.dart';
@@ -15,11 +19,13 @@ class PredictionGraphScreen extends StatefulWidget {
 }
 
 class _PredictionGraphScreenState extends State<PredictionGraphScreen> {
-  final PredictionService _predictionService = PredictionService();
+  final PredictionService _predictionService = serviceLocator<PredictionService>();
+  final AuthService _authService = serviceLocator<AuthService>();
+  final LoggerService _logger = serviceLocator<LoggerService>();
   
   bool _isLoading = true;
   String? _errorMessage;
-  Map<String, dynamic> _contributingFactors = {};
+  Map<String, double> _contributingFactors = {}; // Changed to Map<String, double>
   
   @override
   void initState() {
@@ -28,22 +34,63 @@ class _PredictionGraphScreenState extends State<PredictionGraphScreen> {
   }
   
   Future<void> _fetchPredictionData() async {
+    if (!mounted) return;
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
     try {
-      setState(() {
-        _isLoading = true;
-        _errorMessage = null;
-      });
+      _logger.i('Fetching latest prediction data for graph screen.');
+      final currentUser = _authService.currentUser;
+      if (currentUser == null) {
+        _logger.w('User not logged in. Cannot fetch prediction data.');
+        if (mounted) {
+          setState(() {
+            _errorMessage = 'User not logged in. Please log in to view graphs.';
+            _isLoading = false;
+          });
+        }
+        return;
+      }
+
+      final PredictionModel? latestPrediction = await _predictionService.getLatestPrediction(currentUser.uid);
       
-      final predictionData = await _predictionService.getLatestPrediction();
-      setState(() {
-        _contributingFactors = predictionData['contributingFactors'] ?? {};
-        _isLoading = false;
-      });
-    } catch (e) {
-      setState(() {
-        _errorMessage = 'Failed to load prediction data: ${e.toString()}';
-        _isLoading = false;
-      });
+      if (latestPrediction != null && latestPrediction.contributingFactors != null) {
+        _logger.i('Successfully fetched prediction data. Factors: ${latestPrediction.contributingFactors}');
+        // Ensure factors are Map<String, double>
+        final Map<String, double> factors = {};
+        latestPrediction.contributingFactors!.forEach((key, value) {
+          if (value is num) {
+            factors[key] = value.toDouble();
+          } else {
+            _logger.w('Non-numeric value found in contributingFactors for key $key: $value');
+          }
+        });
+        if (mounted) {
+          setState(() {
+            _contributingFactors = factors;
+            _isLoading = false;
+          });
+        }
+      } else {
+        _logger.i('No prediction data or contributing factors found.');
+        if (mounted) {
+          setState(() {
+            _contributingFactors = {}; // Ensure it's empty if no data
+            _errorMessage = 'No prediction data available to display graphs.';
+            _isLoading = false;
+          });
+        }
+      }
+    } catch (e, stackTrace) {
+      _logger.e('Failed to load prediction data: ${e.toString()}', stackTrace.toString());
+      if (mounted) {
+        setState(() {
+          _errorMessage = 'Failed to load prediction data: ${e.toString()}';
+          _isLoading = false;
+        });
+      }
     }
   }
   

@@ -16,6 +16,8 @@ import '../services/logger_service.dart';
 import 'sleep_patterns_screen.dart';
 import 'environmental_factors_screen.dart';
 import 'dietary_habits_screen.dart';
+import 'recommendation_screen.dart'; // Import RecommendationScreen
+import 'prediction_graph_screen.dart';
 
 class PredictionScreen extends StatefulWidget {
   final Map<String, dynamic>? sleepData;
@@ -36,8 +38,8 @@ class PredictionScreen extends StatefulWidget {
 }
 
 class _PredictionScreenState extends State<PredictionScreen> {
-  final PredictionService _predictionService = PredictionService();
-  final AuthService _authService = AuthService();
+  final PredictionService _predictionService = serviceLocator<PredictionService>();
+  final AuthService _authService = serviceLocator<AuthService>();
   
   bool _isLoading = true;
   String? _errorMessage;
@@ -113,7 +115,7 @@ class _PredictionScreenState extends State<PredictionScreen> {
       }
       
       // Get the current user ID or use a default
-      final currentUser = await _authService.currentUser();
+      final currentUser = _authService.currentUser; // Access as getter
       final userId = currentUser?.uid ?? 'local-user';
       
       // Make the prediction using local AI
@@ -147,7 +149,7 @@ class _PredictionScreenState extends State<PredictionScreen> {
         );
       }
     } catch (e, stackTrace) {
-      _logger.e('Error in _makePrediction', e, stackTrace);
+      _logger.e('Error in _makePrediction: $e', stackTrace.toString());
       if (mounted) {
         setState(() {
           _errorMessage = 'Failed to generate prediction: ${e.toString()}';
@@ -171,7 +173,7 @@ class _PredictionScreenState extends State<PredictionScreen> {
     try {
       _logger.i('Loading user profile');
       
-      final user = await _authService.getCurrentUser();
+      final user = await _authService.getCurrentUserModel(); // Use method that returns Future<UserModel?>
       if (user != null) {
         _logger.i('User profile loaded: ${user.name}');
         if (mounted) {
@@ -190,7 +192,7 @@ class _PredictionScreenState extends State<PredictionScreen> {
         }
       }
     } catch (e, stackTrace) {
-      _logger.e('Error loading user profile', e, stackTrace);
+      _logger.e('Error loading user profile: $e', stackTrace.toString());
       
       if (mounted) {
         setState(() {
@@ -202,45 +204,62 @@ class _PredictionScreenState extends State<PredictionScreen> {
   }
   
   // Fetch the latest prediction for the current user
-  // Fetch the latest prediction for the current user
   Future<bool> _fetchLatestPrediction() async {
+    if (!mounted) return false;
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
     try {
-      _logger.i('Fetching latest prediction for user');
-      
-      final currentUser = await _authService.currentUser();
+      UserModel? currentUser = _authService.currentUser; // Access as getter
       if (currentUser == null) {
-        _logger.w('No user available for fetching prediction');
+        _logger.i('User not available synchronously in _fetchLatestPrediction, attempting to load profile.');
+        await _loadUserProfile(); 
+        currentUser = _authService.currentUser; // Re-check after loading profile
+        
+        if (currentUser == null) { // If still null after attempting to load
+          _logger.w('User remains null after profile load attempt in _fetchLatestPrediction. Cannot fetch latest prediction.');
+          if (mounted) {
+            setState(() {
+              _errorMessage = 'Please log in to see predictions.';
+              _isLoading = false;
+            });
+          }
+          return false;
+        }
+      }
+      // At this point, currentUser should not be null if authentication is required and successful
+      final latestPrediction = await _predictionService.getLatestPrediction(currentUser.uid);
+      if (latestPrediction != null) {
+        _logger.i('Latest prediction found: ${latestPrediction.predictionScore}');
         if (mounted) {
           setState(() {
-            _errorMessage = 'User not authenticated. Please log in.';
+            _prediction = latestPrediction;
             _isLoading = false;
           });
         }
-        return false;
+        return true;
       }
-      
-      // In local implementation, we don't have a history yet
-      _logger.i('Local implementation - no saved predictions');
+      _logger.i('No latest prediction found for user ${currentUser.uid}');
       if (mounted) {
         setState(() {
-          _isLoading = false;
-          _isGenerating = false;
+          _isLoading = false; // Stop loading if no prediction found but no error
         });
       }
       return false;
     } catch (e, stackTrace) {
-      _logger.e('Error fetching latest prediction', e, stackTrace);
-      
+      // Ensure logger call is consistent with two string arguments
+      _logger.e('Error fetching latest prediction: ${e.toString()}', stackTrace.toString()); 
       if (mounted) {
         setState(() {
-          _errorMessage = 'Failed to fetch prediction. Please try again.';
+          _errorMessage = 'Failed to load latest prediction: ${e.toString()}';
           _isLoading = false;
         });
       }
       return false;
     }
   }
-  
+
   // Start the data collection flow
   Future<void> _startDataCollection() async {
     if (_isGenerating) return;
@@ -272,8 +291,6 @@ class _PredictionScreenState extends State<PredictionScreen> {
     }
   }
   
-
-  
   // Method to collect user data and make AI prediction
   Future<void> _makePredictionWithUserData() async {
     if (_isGenerating) return;
@@ -298,91 +315,125 @@ class _PredictionScreenState extends State<PredictionScreen> {
         throw Exception('Sleep data collection was cancelled');
       }
       
-      final environmentalData = await Navigator.push<Map<String, dynamic>>(
+      final environmentalData = await Navigator.push(
         context,
         MaterialPageRoute(
           builder: (context) => EnvironmentalFactorsScreen(
             onSaveOnly: true,
-            sleepData: sleepData,
+            sleepData: sleepData, // Pass sleep data
           ),
         ),
       );
-      
-      if (environmentalData == null) {
-        throw Exception('Environmental data collection was cancelled');
+
+      if (!mounted || environmentalData == null) {
+        _handleDataCollectionCancellation('Environmental data not provided.');
+        return;
       }
-      
-      final dietaryData = await Navigator.push<Map<String, dynamic>>(
+      _logger.i('Environmental data collected: ${environmentalData.keys.length} keys');
+
+      // 3. Collect Dietary Habits Data
+      final dietaryData = await Navigator.push(
         context,
         MaterialPageRoute(
           builder: (context) => DietaryHabitsScreen(
             onSaveOnly: true,
-            sleepData: sleepData,
-            environmentalData: environmentalData,
+            sleepData: sleepData, // Pass sleepData, NOT environmentalData
           ),
         ),
       );
-      
-      if (dietaryData == null) {
-        throw Exception('Dietary data collection was cancelled');
+
+      if (!mounted || dietaryData == null) {
+        _handleDataCollectionCancellation('Dietary data not provided.');
+        return;
       }
-      
-      // Now make the prediction with all collected data using local AI
+      _logger.i('Dietary data collected: ${dietaryData.keys.length} keys');
+
+      // All data collected, proceed to make prediction
+      _logger.i('All data collected successfully, proceeding to make prediction with collected data.');
       if (mounted) {
-        // Update the screen with the collected data and make prediction
-        setState(() {
-          _isLoading = true;
-        });
-        
-        // Get the current user ID or use a default
-        final currentUser = await _authService.currentUser();
-        final userId = currentUser?.uid ?? 'local-user';
-        
-        // Make the prediction using local AI
-        final prediction = await _predictionService.generatePrediction(
-          userId,
-          environmentalData,
-          dietaryData,
-          sleepData['historicalData'] ?? [],
-        );
-        
-        if (mounted) {
+        // Call the dedicated method to make prediction with the newly collected data
+        _makePredictionWithCollectedData(sleepData, environmentalData, dietaryData);
       }
-    }
-  } catch (e, stackTrace) {
-    _logger.e('Error in prediction flow', e, stackTrace);
-
-    if (mounted) {
-      setState(() {
-        _errorMessage = 'Error: ${e.toString()}';
-        _isLoading = false;
-        _isGenerating = false;
-      });
-
-      // Show error to user
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error: ${e.toString()}'),
-          backgroundColor: Colors.red,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-    }
+    } catch (e, stackTrace) {
+      _logger.e('Error in _startDataCollection: ${e.toString()}', stackTrace.toString());
+      if (mounted) {
         setState(() {
-          _generationError = 'Failed to generate AI prediction: ${e.toString()}';
+          _errorMessage = 'Error during data collection: ${e.toString()}';
+          _isLoading = false;
           _isGenerating = false;
         });
-        
+      }
+    }
+  }
+
+  Future<void> _makePredictionWithCollectedData(
+    Map<String, dynamic> sleepData,
+    Map<String, dynamic> environmentalData,
+    Map<String, dynamic> dietaryData
+  ) async {
+    if (!mounted) return;
+
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+      _isGenerating = true;
+      _generationError = null;
+    });
+
+    try {
+      _logger.i('Making prediction with newly collected data');
+      // UserId is handled by the predictionService.makePrediction method internally
+
+      final predictionResult = await _predictionService.makePrediction(
+        sleepData: sleepData,
+        environmentalData: environmentalData,
+        dietaryData: dietaryData,
+      );
+
+      if (mounted) {
+        setState(() {
+          _prediction = predictionResult;
+          _isLoading = false;
+          _isGenerating = false;
+        });
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: ${e.toString()}')),
+          SnackBar(
+            content: const Text('Prediction generated successfully!'),
+            backgroundColor: Theme.of(context).primaryColor,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } catch (e, stackTrace) {
+      _logger.e('Error in _makePredictionWithCollectedData: $e', stackTrace.toString());
+      if (mounted) {
+        setState(() {
+          _errorMessage = 'Failed to generate prediction: ${e.toString()}';
+          _generationError = e.toString();
+          _isLoading = false;
+          _isGenerating = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: ${e.toString()}'),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+          ),
         );
       }
     }
   }
-  
-  // This method is no longer needed as it has been replaced by the version above
-  // Keeping this comment for reference
-  
+
+  void _handleDataCollectionCancellation(String message) {
+    if (mounted) {
+      setState(() {
+        _errorMessage = message;
+        _isLoading = false;
+        _isGenerating = false;
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
@@ -436,7 +487,7 @@ class _PredictionScreenState extends State<PredictionScreen> {
                                 ),
                                 const SizedBox(height: 16),
                                 ElevatedButton(
-                                  onPressed: _loadData,
+                                  onPressed: _initializeData, // Corrected: Use _initializeData to retry
                                   child: const Text('Try Again'),
                                 ),
                               ],
@@ -555,7 +606,7 @@ class _PredictionScreenState extends State<PredictionScreen> {
                                       Navigator.push(
                                         context,
                                         MaterialPageRoute(
-                                          builder: (context) => const PredictionGraphScreen(),
+                                          builder: (context) => const PredictionGraphScreen(), // Assuming this screen exists and is imported
                                         ),
                                       );
                                     },
@@ -588,8 +639,8 @@ class _PredictionScreenState extends State<PredictionScreen> {
                                       Navigator.push(
                                         context,
                                         MaterialPageRoute(
-                                          builder: (context) => RecommendationScreen(
-                                            predictionData: _prediction?.toJson(),
+                                          builder: (context) => RecommendationScreen( // Instantiate with const if appropriate
+                                            predictionData: _prediction!.toJson(),
                                           ),
                                         ),
                                       );

@@ -5,6 +5,7 @@ import '../widgets/custom_profile_drawer.dart';
 import 'package:flutter/services.dart';
 import '../services/prediction_service.dart';
 import '../services/auth_service.dart';
+import '../services/service_locator.dart'; // Import serviceLocator
 import '../widgets/loading_indicator.dart';
 import '../models/user_model.dart';
 
@@ -18,8 +19,8 @@ class RecommendationScreen extends StatefulWidget {
 }
 
 class _RecommendationScreenState extends State<RecommendationScreen> {
-  final PredictionService _predictionService = PredictionService();
-  final AuthService _authService = AuthService();
+  final PredictionService _predictionService = serviceLocator<PredictionService>();
+  final AuthService _authService = serviceLocator<AuthService>();
   
   bool _isLoading = true;
   String? _errorMessage;
@@ -66,7 +67,8 @@ class _RecommendationScreenState extends State<RecommendationScreen> {
         }
       } else {
         // Otherwise, load recommendations from the API
-        final recommendations = await _predictionService.getRecommendations();
+        // Pass an empty map as params, service should handle general recommendations
+        final recommendations = await _predictionService.getRecommendations({}); 
         if (mounted) {
           setState(() {
             _recommendations = recommendations;

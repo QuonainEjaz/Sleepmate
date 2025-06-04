@@ -26,11 +26,11 @@ class PredictionModel {
     required this.date,
     this.predictionScore = 0.0,
     this.predictedInterruptionCount = 0,
-    this.predictedInterruptionWindows = const [],
+    this.predictedInterruptionWindows = const <InterruptionWindow>[], // Explicitly typed
     this.contributingFactors,
-    this.recommendations = const [],
+    this.recommendations = const <String>[], // Explicitly typed
     this.insights,
-    this.inputData = const {},
+    this.inputData = const <String, dynamic>{}, // Explicitly typed
     DateTime? createdAt,
     this.sleepQuality,
     this.sleepDuration,
@@ -38,44 +38,74 @@ class PredictionModel {
     this.environmentalData,
     this.dietaryData,
   }) : createdAt = createdAt ?? DateTime.now();
+
+  // Factory for creating a simple/empty model
+  factory PredictionModel.simple({
+    String? id,
+    String? userId,
+    DateTime? date,
+  }) {
+    return PredictionModel(
+      id: id ?? 'simple-${DateTime.now().millisecondsSinceEpoch}',
+      userId: userId ?? 'simple-user',
+      date: date ?? DateTime.now(),
+      predictionScore: 0.0,
+      predictedInterruptionCount: 0,
+      predictedInterruptionWindows: const <InterruptionWindow>[],
+      recommendations: const <String>[],
+      inputData: const <String, dynamic>{},
+      insights: const <String>[],
+    );
+  }
   
   // Factory for creating from JSON
   factory PredictionModel.fromJson(Map<String, dynamic> json) {
     // Handle interruption windows
-    List<InterruptionWindow> windows = [];
-    if (json['predictedInterruptionWindows'] != null) {
+    List<InterruptionWindow> windows = <InterruptionWindow>[]; // Explicitly typed
+    if (json['predictedInterruptionWindows'] != null && json['predictedInterruptionWindows'] is List) {
       try {
         windows = (json['predictedInterruptionWindows'] as List)
-            .map((w) => InterruptionWindow.fromJson(w is Map<String, dynamic> ? w : { ...w }))
+            .map((w) {
+              if (w is Map<String, dynamic>) return InterruptionWindow.fromJson(w);
+              if (w is Map) return InterruptionWindow.fromJson(Map<String, dynamic>.from(w));
+              return null; // Or throw an error, or handle appropriately
+            })
+            .whereType<InterruptionWindow>() // Filter out nulls if any
             .toList();
       } catch (e) {
         // Fallback if there's an error parsing windows
-        windows = [];
+        windows = <InterruptionWindow>[]; // Explicitly typed
       }
     }
     
     // Handle input data from various formats
-    final inputData = json['inputData'] is Map 
-        ? Map<String, dynamic>.from(json['inputData']) 
-        : {};
+    final dynamic rawInputData = json['inputData'];
+    final Map<String, dynamic> inputData = rawInputData is Map 
+        ? Map<String, dynamic>.from(rawInputData) 
+        : const <String, dynamic>{}; // Explicitly typed
     
     // Extract data from inputData if separate fields aren't available
-    final sleepData = json['sleepData'] is Map 
-        ? Map<String, dynamic>.from(json['sleepData']) 
-        : inputData;
-    final environmentalData = json['environmentalData'] is Map 
-        ? Map<String, dynamic>.from(json['environmentalData']) 
-        : inputData;
-    final dietaryData = json['dietaryData'] is Map 
-        ? Map<String, dynamic>.from(json['dietaryData']) 
-        : inputData;
+    final dynamic rawSleepData = json['sleepData'];
+    final Map<String, dynamic> sleepData = rawSleepData is Map 
+        ? Map<String, dynamic>.from(rawSleepData) 
+        : inputData; // Fallback to inputData if not present
+
+    final dynamic rawEnvironmentalData = json['environmentalData'];
+    final Map<String, dynamic> environmentalData = rawEnvironmentalData is Map 
+        ? Map<String, dynamic>.from(rawEnvironmentalData) 
+        : inputData; // Fallback to inputData
+
+    final dynamic rawDietaryData = json['dietaryData'];
+    final Map<String, dynamic> dietaryData = rawDietaryData is Map 
+        ? Map<String, dynamic>.from(rawDietaryData) 
+        : inputData; // Fallback to inputData
     
     // Extract sleep quality and duration with fallbacks
     final sleepQuality = _extractInt(json, 'sleepQuality', inputData, 5);
-    final sleepDuration = _extractInt(json, 'sleepDuration', inputData, 7);
+    final sleepDuration = _extractInt(json, 'sleepDuration', inputData, 7); // Assuming minutes
     
     // Generate insights from various possible fields
-    List<String> insights = [];
+    List<String> insights = <String>[]; // Explicitly typed
     if (json['insights'] is List) {
       insights = List<String>.from(json['insights']);
     } else if (json['insights'] is String) {
@@ -106,18 +136,18 @@ class PredictionModel {
       predictedInterruptionCount: (json['predictedInterruptionCount'] ?? 0).toInt(),
       predictedInterruptionWindows: windows,
       contributingFactors: json['contributingFactors'] is Map
-          ? Map<String, double>.from(json['contributingFactors'])
+          ? Map<String, dynamic>.from(json['contributingFactors'] as Map) // Ensure it's Map<String, dynamic>
           : null,
       recommendations: json['recommendations'] is List
           ? List<String>.from(json['recommendations'])
-          : [],
+          : <String>[], // Explicitly typed
       insights: insights,
-      inputData: inputData,
-      sleepQuality: sleepQuality is int ? sleepQuality : sleepQuality?.toInt() ?? 5,
-      sleepDuration: sleepDuration is int ? sleepDuration : sleepDuration?.toInt() ?? 7,
-      sleepData: sleepData,
-      environmentalData: environmentalData,
-      dietaryData: dietaryData,
+      inputData: inputData, // Should be Map<String, dynamic>
+      sleepQuality: sleepQuality, // Already int
+      sleepDuration: sleepDuration, // Already int
+      sleepData: sleepData, // Should be Map<String, dynamic>
+      environmentalData: environmentalData, // Should be Map<String, dynamic>
+      dietaryData: dietaryData, // Should be Map<String, dynamic>
     );
   }
 
@@ -165,18 +195,20 @@ class PredictionModel {
   static int _extractInt(
     Map<String, dynamic> primary,
     String key,
-    Map<String, dynamic> fallback,
+    Map<String, dynamic> fallback, // This should be Map<String, dynamic>
     int defaultValue,
   ) {
-    if (primary[key] != null) {
-      return primary[key] is int 
-          ? primary[key] 
-          : int.tryParse(primary[key].toString()) ?? defaultValue;
+    if (primary.containsKey(key) && primary[key] != null) {
+      final val = primary[key];
+      return val is int 
+          ? val 
+          : int.tryParse(val.toString()) ?? defaultValue;
     }
-    if (fallback[key] != null) {
-      return fallback[key] is int 
-          ? fallback[key] 
-          : int.tryParse(fallback[key].toString()) ?? defaultValue;
+    if (fallback.containsKey(key) && fallback[key] != null) {
+      final val = fallback[key];
+      return val is int 
+          ? val 
+          : int.tryParse(val.toString()) ?? defaultValue;
     }
     return defaultValue;
   }
