@@ -156,7 +156,7 @@ class MyApp extends StatelessWidget {
             // Apply Montserrat Alternates to all text styles
             useMaterial3: true,
           ),
-          initialRoute: '/sleep_pattern',
+          initialRoute: AppConstants.splashRoute,
           onGenerateRoute: (settings) {
             // Handle named routes with arguments
             switch (settings.name) {

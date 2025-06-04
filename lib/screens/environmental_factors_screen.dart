@@ -177,10 +177,11 @@ class _EnvironmentalFactorsScreenState extends State<EnvironmentalFactorsScreen>
       );
       
       if (mounted) {
-        // Navigate to PredictionScreen with prediction results
-        Navigator.pushReplacementNamed(
+        // Navigate to PredictionScreen with prediction results, clearing the stack
+        Navigator.pushNamedAndRemoveUntil(
           context,
           AppConstants.predictionRoute,
+          (Route<dynamic> route) => false, // This predicate removes all previous routes
           arguments: {
             'sleepData': sleepData,
             'dietaryData': dietaryData,

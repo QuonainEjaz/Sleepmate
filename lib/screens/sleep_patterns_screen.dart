@@ -12,7 +12,9 @@ import '../blocs/auth/auth_state.dart';
 import '../services/auth_service.dart';
 
 class SleepPatternsScreen extends StatefulWidget {
-  const SleepPatternsScreen({Key? key}) : super(key: key);
+  final bool onSaveOnly;
+
+  const SleepPatternsScreen({Key? key, this.onSaveOnly = false}) : super(key: key);
 
   @override
   State<SleepPatternsScreen> createState() => _SleepPatternsScreenState();
@@ -89,9 +91,11 @@ class _SleepPatternsScreenState extends State<SleepPatternsScreen> {
   double _stressLevel = 1.0;
 
   String _formatTime(TimeOfDay time) {
-    String hour = time.hour.toString().padLeft(2, '0');
+    // Use hourOfPeriod for 12-hour format (1-12)
+    String hour = time.hourOfPeriod.toString().padLeft(2, '0');
     String minute = time.minute.toString().padLeft(2, '0');
-    return '$hour:$minute';
+    String period = time.period == DayPeriod.am ? ' AM' : ' PM';
+    return '$hour:$minute$period';
   }
 
   Future<void> _selectTime(BuildContext context, String type) async {
@@ -182,7 +186,7 @@ class _SleepPatternsScreenState extends State<SleepPatternsScreen> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  _formatTime(time) + (time.period == DayPeriod.am ? ' am' : ' pm'),
+                  _formatTime(time), // AM/PM is now included by _formatTime
                   style: GoogleFonts.montaga(
                     fontSize: 16,
                     color: Colors.black87,
@@ -343,6 +347,11 @@ class _SleepPatternsScreenState extends State<SleepPatternsScreen> {
 
   // Save sleep data and navigate to next screen
   void _saveAndContinue() {
+    if (widget.onSaveOnly) {
+      Navigator.pop(context, _buildSleepData());
+      return;
+    }
+
     // Check if this is a first-time user who needs to set age and gender
     if (_isFirstTimeUser) {
       // Validate age and gender inputs
@@ -714,10 +723,7 @@ class _SleepPatternsScreenState extends State<SleepPatternsScreen> {
                         width: MediaQuery.of(context).size.width * 0.75,
                         height: 56,
                         child: ElevatedButton(
-                          onPressed: () {
-                            // After data submission, go to PredictionScreen and clear stack
-                            Navigator.pushNamedAndRemoveUntil(context, '/prediction', (route) => false);
-                          },
+                          onPressed: _saveAndContinue,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: const Color(0xFF65558F),
                             padding: const EdgeInsets.symmetric(vertical: 16 ),

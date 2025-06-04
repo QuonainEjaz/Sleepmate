@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../widgets/custom_profile_drawer.dart';
 import '../widgets/custom_bottom_navigation.dart';
 import 'package:flutter/services.dart';
+import 'package:intl/intl.dart';
 
 class ScheduleScreen extends StatefulWidget {
   const ScheduleScreen({Key? key}) : super(key: key);
@@ -11,7 +12,7 @@ class ScheduleScreen extends StatefulWidget {
 }
 
 class _ScheduleScreenState extends State<ScheduleScreen> {
-  int selectedDay = 11;
+  DateTime selectedDate = DateTime.now();
   int weekOffset = 0; // 0: days 1-14, 1: days 15-28, 2: days 29-31
   static const int daysPerPage = 14;
   final int totalDays = 31;
@@ -82,8 +83,23 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
     ));
   }
 
+  void _goToPrevDay() {
+    setState(() {
+      selectedDate = selectedDate.subtract(const Duration(days: 1));
+    });
+  }
+
+  void _goToNextDay() {
+    setState(() {
+      selectedDate = selectedDate.add(const Duration(days: 1));
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
+    final String day = DateFormat('d').format(selectedDate);
+    final String monthYear = DateFormat('MMMM yyyy').format(selectedDate);
+    final String todayLabel = 'TODAY IS';
     return Scaffold(
       backgroundColor: const Color(0xFF2D2041),
       endDrawer: const CustomProfileDrawer(),
@@ -106,59 +122,32 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                     ),
                   ),
                   const SizedBox(height: 4),
-                  const Text(
-                    '11,January 2025',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 28,
-                      fontFamily: 'Montaga',
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      GestureDetector(
-                        onTap: weekOffset > 0
-                            ? () => setState(() {
-                                  weekOffset--;
-                                  selectedDay = weekOffset * daysPerPage + 1;
-                                })
-                            : null,
-                        child: Container(
-                          width: 36,
-                          height: 36,
-                          decoration: BoxDecoration(
-                            color: Colors.transparent,
-                            shape: BoxShape.circle,
-                            border: Border.all(color: Colors.white24, width: 2),
-                          ),
-                          child: Icon(Icons.chevron_left, color: Colors.white24, size: 28),
+                      Text(
+                        '$day, $monthYear',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 28,
+                          fontFamily: 'Montaga',
+                          fontWeight: FontWeight.w500,
                         ),
                       ),
-                      const SizedBox(width: 16),
-                      GestureDetector(
-                        onTap: (weekOffset + 1) * daysPerPage < totalDays
-                            ? () => setState(() {
-                                  weekOffset++;
-                                  selectedDay = weekOffset * daysPerPage + 1;
-                                })
-                            : null,
-                        child: Container(
-                          width: 36,
-                          height: 36,
-                          decoration: BoxDecoration(
-                            color: Colors.transparent,
-                            shape: BoxShape.circle,
-                            border: Border.all(color: Colors.white, width: 2),
-                          ),
-                          child: Icon(Icons.chevron_right, color: Colors.white, size: 28),
-                        ),
+                      const SizedBox(width: 12),
+                      IconButton(
+                        icon: const Icon(Icons.chevron_left, color: Colors.white, size: 28),
+                        onPressed: _goToPrevDay,
+                        splashRadius: 20,
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.chevron_right, color: Colors.white, size: 28),
+                        onPressed: _goToNextDay,
+                        splashRadius: 20,
                       ),
                     ],
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 16),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -195,13 +184,13 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                                           int day = weekOffset * daysPerPage + i;
                                           if (day > totalDays) return const SizedBox();
                                           return GestureDetector(
-                                            onTap: () => setState(() => selectedDay = day),
+                                            onTap: () => setState(() => selectedDate = DateTime(selectedDate.year, selectedDate.month, day)),
                                             child: Container(
                                               width: 32,
                                               height: 32,
                                               margin: const EdgeInsets.symmetric(horizontal: 2, vertical: 2),
                                               decoration: BoxDecoration(
-                                                color: (selectedDay == day)
+                                                color: (selectedDate.day == day)
                                                     ? const Color(0xFFFFD6E0)
                                                     : Colors.transparent,
                                                 border: Border.all(
@@ -214,7 +203,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                                                 child: Text(
                                                   day.toString(),
                                                   style: TextStyle(
-                                                    color: (selectedDay == day)
+                                                    color: (selectedDate.day == day)
                                                         ? const Color(0xFF2D2041)
                                                         : Colors.white,
                                                     fontWeight: FontWeight.bold,
@@ -241,13 +230,13 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                                           int day = weekOffset * daysPerPage + i;
                                           if (day > totalDays) return const SizedBox();
                                           return GestureDetector(
-                                            onTap: () => setState(() => selectedDay = day),
+                                            onTap: () => setState(() => selectedDate = DateTime(selectedDate.year, selectedDate.month, day)),
                                             child: Container(
                                               width: 32,
                                               height: 32,
                                               margin: const EdgeInsets.symmetric(horizontal: 2, vertical: 2),
                                               decoration: BoxDecoration(
-                                                color: (selectedDay == day)
+                                                color: (selectedDate.day == day)
                                                     ? const Color(0xFFFFD6E0)
                                                     : Colors.transparent,
                                                 border: Border.all(
@@ -260,7 +249,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                                                 child: Text(
                                                   day.toString(),
                                                   style: TextStyle(
-                                                    color: (selectedDay == day)
+                                                    color: (selectedDate.day == day)
                                                         ? const Color(0xFF2D2041)
                                                         : Colors.white,
                                                     fontWeight: FontWeight.bold,
@@ -310,7 +299,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                     Expanded(
                       child: Builder(
                         builder: (context) {
-                          final schedule = scheduleByDay[selectedDay] ?? [];
+                          final schedule = scheduleByDay[selectedDate.day] ?? [];
                           if (schedule.isEmpty) {
                             return const Center(
                               child: Text(
